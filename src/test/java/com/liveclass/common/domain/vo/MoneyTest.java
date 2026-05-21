@@ -19,7 +19,7 @@ class MoneyTest {
         Money money = new Money(1000L);
 
         // then
-        assertThat(money.amount()).isEqualTo(1000L);
+        assertThat(money.getAmount()).isEqualTo(1000L);
     }
 
     @Test
