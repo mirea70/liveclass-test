@@ -17,7 +17,7 @@ class CourseRepositoryTest extends JpaTestSupport {
 
     @Test
     @DisplayName("강의를 저장하면 ID가 자동 생성된다")
-    void 저장하면_ID가_자동_생성된다() {
+    void generatesId_whenSaved() {
         // given
         Course course = createCourse();
 
@@ -30,7 +30,7 @@ class CourseRepositoryTest extends JpaTestSupport {
 
     @Test
     @DisplayName("저장된 강의를 ID로 조회할 수 있다")
-    void ID로_조회할_수_있다() {
+    void findsById_whenSaved() {
         // given
         Course saved = courseRepository.saveAndFlush(createCourse());
         Long id = saved.getId();
@@ -47,7 +47,7 @@ class CourseRepositoryTest extends JpaTestSupport {
 
     @Test
     @DisplayName("저장 시 createdAt과 updatedAt이 자동 설정된다")
-    void 저장_시_감사_필드가_설정된다() {
+    void setsAuditFields_whenSaved() {
         // when
         Course saved = courseRepository.saveAndFlush(createCourse());
 
@@ -58,7 +58,7 @@ class CourseRepositoryTest extends JpaTestSupport {
 
     @Test
     @DisplayName("새로 저장된 강의는 DRAFT 상태로 영속된다")
-    void 새로_저장된_강의는_DRAFT_상태로_영속된다() {
+    void persistsAsDraft_whenSaved() {
         // given
         Course saved = courseRepository.saveAndFlush(createCourse());
         Long id = saved.getId();
@@ -73,7 +73,7 @@ class CourseRepositoryTest extends JpaTestSupport {
 
     @Test
     @DisplayName("강의 상태 변경 후 영속되면 변경된 상태로 조회된다")
-    void 상태_변경이_영속된다() {
+    void persistsStatusChange_whenUpdated() {
         // given
         Course saved = courseRepository.saveAndFlush(createCourse());
         Long id = saved.getId();
@@ -93,11 +93,11 @@ class CourseRepositoryTest extends JpaTestSupport {
 
     @Test
     @DisplayName("Money와 CoursePeriod 값 객체가 영속·조회된다")
-    void VO가_영속된다() {
+    void persistsEmbeddedValueObjects_whenSaved() {
         // given
         Money price = new Money(99_000L);
         CoursePeriod period = new CoursePeriod(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31));
-        Course course = new Course(100L, "Spring Boot 마스터", "Spring Boot 실전", price, 30, period);
+        Course course = Course.createNew(100L, "Spring Boot 마스터", "Spring Boot 실전", price, 30, period);
 
         Course saved = courseRepository.saveAndFlush(course);
         Long id = saved.getId();
@@ -115,7 +115,7 @@ class CourseRepositoryTest extends JpaTestSupport {
 
     @Test
     @DisplayName("엔티티가 변경되면 version이 증가한다")
-    void update_시_version이_증가한다() {
+    void incrementsVersion_whenUpdated() {
         // given
         Course saved = courseRepository.saveAndFlush(createCourse());
         Long id = saved.getId();
@@ -134,7 +134,7 @@ class CourseRepositoryTest extends JpaTestSupport {
     }
 
     private Course createCourse() {
-        return new Course(
+        return Course.createNew(
                 100L,
                 "Spring Boot 마스터",
                 "Spring Boot 실전",

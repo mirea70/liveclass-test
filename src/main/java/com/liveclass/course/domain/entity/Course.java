@@ -66,10 +66,7 @@ public class Course extends BaseEntity {
     @Column(nullable = false)
     private Long version;
 
-    public Course(Long creatorId, String title, String description, Money price, int capacity, CoursePeriod period) {
-        if (capacity < 1) {
-            throw new DomainException(CourseErrorInfo.CAPACITY_INVALID_VALUE);
-        }
+    private Course(Long creatorId, String title, String description, Money price, int capacity, CoursePeriod period) {
         this.creatorId = creatorId;
         this.title = title;
         this.description = description;
@@ -77,6 +74,13 @@ public class Course extends BaseEntity {
         this.capacity = capacity;
         this.period = period;
         this.status = CourseStatus.DRAFT;
+    }
+
+    public static Course createNew(Long creatorId, String title, String description, Money price, int capacity, CoursePeriod period) {
+        if (capacity < 1) {
+            throw new DomainException(CourseErrorInfo.CAPACITY_INVALID_VALUE);
+        }
+        return new Course(creatorId, title, description, price, capacity, period);
     }
 
     public void open() {

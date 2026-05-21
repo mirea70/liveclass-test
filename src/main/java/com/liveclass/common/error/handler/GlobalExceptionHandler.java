@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -46,6 +47,16 @@ public class GlobalExceptionHandler {
                 ));
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("INVALID_REQUEST", "요청 정보 중 유효하지 않은 값이 있습니다.", request.getRequestURI(), details));
+    }
+
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ErrorResponse> handleMissingRequestHeader(MissingRequestHeaderException e, HttpServletRequest request) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse(
+                        String.valueOf(HttpStatus.BAD_REQUEST.value()),
+                        "필수 헤더가 누락되었습니다: " + e.getHeaderName(),
+                        request.getRequestURI()
+                ));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

@@ -15,9 +15,9 @@ class CourseEnrollCountRepositoryTest extends JpaTestSupport {
 
     @Test
     @DisplayName("courseId로 저장 후 조회하면 초기 count가 0이다")
-    void 저장_후_조회하면_count는_0이다() {
+    void countIsZero_whenSavedFresh() {
         // given
-        courseEnrollCountRepository.saveAndFlush(new CourseEnrollCount(COURSE_ID));
+        courseEnrollCountRepository.saveAndFlush(CourseEnrollCount.createNew(COURSE_ID));
         entityManager.clear();
 
         // when
@@ -30,9 +30,9 @@ class CourseEnrollCountRepositoryTest extends JpaTestSupport {
 
     @Test
     @DisplayName("tryReserve 후 영속하면 count가 증가된 상태로 조회된다")
-    void tryReserve_가_영속된다() {
+    void persistsCountIncrement_whenTryReserved() {
         // given
-        courseEnrollCountRepository.saveAndFlush(new CourseEnrollCount(COURSE_ID));
+        courseEnrollCountRepository.saveAndFlush(CourseEnrollCount.createNew(COURSE_ID));
         entityManager.clear();
 
         // when
@@ -48,9 +48,9 @@ class CourseEnrollCountRepositoryTest extends JpaTestSupport {
 
     @Test
     @DisplayName("release 후 영속하면 count가 감소된 상태로 조회된다")
-    void release_가_영속된다() {
+    void persistsCountDecrement_whenReleased() {
         // given
-        CourseEnrollCount initial = new CourseEnrollCount(COURSE_ID);
+        CourseEnrollCount initial = CourseEnrollCount.createNew(COURSE_ID);
         initial.tryReserve(CAPACITY);
         initial.tryReserve(CAPACITY);
         courseEnrollCountRepository.saveAndFlush(initial);
@@ -69,9 +69,9 @@ class CourseEnrollCountRepositoryTest extends JpaTestSupport {
 
     @Test
     @DisplayName("엔티티가 변경되면 version이 증가한다")
-    void update_시_version이_증가한다() {
+    void incrementsVersion_whenUpdated() {
         // given
-        CourseEnrollCount saved = courseEnrollCountRepository.saveAndFlush(new CourseEnrollCount(COURSE_ID));
+        CourseEnrollCount saved = courseEnrollCountRepository.saveAndFlush(CourseEnrollCount.createNew(COURSE_ID));
         Long initialVersion = saved.getVersion();
         entityManager.clear();
 

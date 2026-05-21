@@ -14,7 +14,7 @@ class MoneyTest {
 
     @Test
     @DisplayName("금액이 양수면 정상 생성된다")
-    void 금액이_양수면_정상_생성된다() {
+    void creates_whenAmountIsPositive() {
         // when
         Money money = new Money(1000L);
 
@@ -24,7 +24,7 @@ class MoneyTest {
 
     @Test
     @DisplayName("금액이 0이면 정상 생성된다 (무료 강의 허용)")
-    void 금액이_0이면_정상_생성된다() {
+    void creates_whenAmountIsZero() {
         // when & then
         assertThatCode(() -> new Money(0L))
                 .doesNotThrowAnyException();
@@ -32,7 +32,7 @@ class MoneyTest {
 
     @Test
     @DisplayName("금액이 음수면 DomainException이 발생한다")
-    void 금액이_음수면_예외가_발생한다() {
+    void throws_whenAmountIsNegative() {
         // when & then
         assertThatThrownBy(() -> new Money(-1L))
                 .isInstanceOf(DomainException.class)

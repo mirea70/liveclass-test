@@ -12,9 +12,9 @@ class CourseEnrollCountTest {
 
     @Test
     @DisplayName("생성 시 현재 인원수는 0이다")
-    void 생성_시_현재_인원수는_0이다() {
+    void countIsZero_whenCreated() {
         // when
-        CourseEnrollCount count = new CourseEnrollCount(1L);
+        CourseEnrollCount count = CourseEnrollCount.createNew(1L);
 
         // then
         assertThat(count.getCourseId()).isEqualTo(1L);
@@ -23,9 +23,9 @@ class CourseEnrollCountTest {
 
     @Test
     @DisplayName("정원이 남아있으면 tryReserve는 true를 반환하고 인원수가 1 증가한다")
-    void 정원이_남으면_tryReserve_는_true_반환하고_증가한다() {
+    void returnsTrueAndIncrements_whenTryReserveWithAvailableSeat() {
         // given
-        CourseEnrollCount count = new CourseEnrollCount(1L);
+        CourseEnrollCount count = CourseEnrollCount.createNew(1L);
 
         // when
         boolean result = count.tryReserve(CAPACITY);
@@ -37,7 +37,7 @@ class CourseEnrollCountTest {
 
     @Test
     @DisplayName("정원이 가득 차면 tryReserve는 false를 반환하고 인원수는 변하지 않는다")
-    void 정원이_차면_tryReserve_는_false_반환하고_변하지_않는다() {
+    void returnsFalseAndUnchanged_whenTryReserveWithFullCapacity() {
         // given
         CourseEnrollCount count = fullCount();
 
@@ -51,9 +51,9 @@ class CourseEnrollCountTest {
 
     @Test
     @DisplayName("release는 현재 인원수를 1 감소시킨다")
-    void release는_인원수를_감소시킨다() {
+    void decrementsCount_whenReleased() {
         // given
-        CourseEnrollCount count = new CourseEnrollCount(1L);
+        CourseEnrollCount count = CourseEnrollCount.createNew(1L);
         count.tryReserve(CAPACITY);
 
         // when
@@ -65,9 +65,9 @@ class CourseEnrollCountTest {
 
     @Test
     @DisplayName("현재 인원수가 0일 때 release는 무영향이다")
-    void 인원수가_0이면_release는_무영향이다() {
+    void unchanged_whenReleasedAtZero() {
         // given
-        CourseEnrollCount count = new CourseEnrollCount(1L);
+        CourseEnrollCount count = CourseEnrollCount.createNew(1L);
 
         // when
         count.release();
@@ -78,9 +78,9 @@ class CourseEnrollCountTest {
 
     @Test
     @DisplayName("hasAvailableSeat: 현재 인원수가 정원 미만이면 true")
-    void 정원_미만이면_hasAvailableSeat은_true() {
+    void returnsTrue_whenHasSeatAvailable() {
         // given
-        CourseEnrollCount count = new CourseEnrollCount(1L);
+        CourseEnrollCount count = CourseEnrollCount.createNew(1L);
 
         // when & then
         assertThat(count.hasAvailableSeat(CAPACITY)).isTrue();
@@ -88,7 +88,7 @@ class CourseEnrollCountTest {
 
     @Test
     @DisplayName("hasAvailableSeat: 현재 인원수가 정원과 같으면 false")
-    void 정원_가득차면_hasAvailableSeat은_false() {
+    void returnsFalse_whenSeatFull() {
         // given
         CourseEnrollCount count = fullCount();
 
@@ -97,7 +97,7 @@ class CourseEnrollCountTest {
     }
 
     private CourseEnrollCount fullCount() {
-        CourseEnrollCount count = new CourseEnrollCount(1L);
+        CourseEnrollCount count = CourseEnrollCount.createNew(1L);
         for (int i = 0; i < CAPACITY; i++) {
             count.tryReserve(CAPACITY);
         }

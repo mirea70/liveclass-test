@@ -27,9 +27,13 @@ public class CourseEnrollCount extends BaseEntity {
     @Column(nullable = false)
     private Long version;
 
-    public CourseEnrollCount(Long courseId) {
+    private CourseEnrollCount(Long courseId) {
         this.courseId = courseId;
         this.count = 0;
+    }
+
+    public static CourseEnrollCount createNew(Long courseId) {
+        return new CourseEnrollCount(courseId);
     }
 
     public boolean tryReserve(int capacity) {

@@ -16,7 +16,7 @@ class CoursePeriodTest {
 
     @Test
     @DisplayName("시작일이 종료일보다 이전이면 정상 생성된다")
-    void 시작일이_종료일보다_이전이면_정상_생성된다() {
+    void creates_whenStartDateIsBeforeEndDate() {
         // given
         LocalDate start = LocalDate.of(2026, 6, 1);
         LocalDate end = LocalDate.of(2026, 8, 31);
@@ -31,7 +31,7 @@ class CoursePeriodTest {
 
     @Test
     @DisplayName("시작일과 종료일이 같으면 정상 생성된다")
-    void 시작일과_종료일이_같으면_정상_생성된다() {
+    void creates_whenStartDateEqualsEndDate() {
         // given
         LocalDate date = LocalDate.of(2026, 6, 1);
 
@@ -42,7 +42,7 @@ class CoursePeriodTest {
 
     @Test
     @DisplayName("시작일이 종료일보다 늦으면 DomainException이 발생한다")
-    void 시작일이_종료일보다_늦으면_예외가_발생한다() {
+    void throws_whenStartDateIsAfterEndDate() {
         // given
         LocalDate start = LocalDate.of(2026, 8, 31);
         LocalDate end = LocalDate.of(2026, 6, 1);
@@ -56,7 +56,7 @@ class CoursePeriodTest {
 
     @Test
     @DisplayName("시작일이 null이면 DomainException이 발생한다")
-    void 시작일이_null이면_예외가_발생한다() {
+    void throws_whenStartDateIsNull() {
         // when & then
         assertThatThrownBy(() -> new CoursePeriod(null, LocalDate.of(2026, 8, 31)))
                 .isInstanceOf(DomainException.class)
@@ -66,7 +66,7 @@ class CoursePeriodTest {
 
     @Test
     @DisplayName("종료일이 null이면 DomainException이 발생한다")
-    void 종료일이_null이면_예외가_발생한다() {
+    void throws_whenEndDateIsNull() {
         // when & then
         assertThatThrownBy(() -> new CoursePeriod(LocalDate.of(2026, 6, 1), null))
                 .isInstanceOf(DomainException.class)
