@@ -5,9 +5,7 @@ import com.liveclass.course.dto.request.CourseCreateRequest;
 import com.liveclass.course.dto.request.CourseStatusUpdateRequest;
 import com.liveclass.course.dto.response.CourseResponse;
 import com.liveclass.course.dto.response.CourseSummaryResponse;
-import com.liveclass.course.service.CourseCreateService;
-import com.liveclass.course.service.CourseListService;
-import com.liveclass.course.service.CourseStatusUpdateService;
+import com.liveclass.course.service.CourseService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -29,9 +27,7 @@ import java.util.List;
 @RequestMapping("/api/courses")
 public class CourseController {
 
-    private final CourseCreateService courseCreateService;
-    private final CourseStatusUpdateService courseStatusUpdateService;
-    private final CourseListService courseListService;
+    private final CourseService courseService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -39,7 +35,7 @@ public class CourseController {
             @RequestHeader("X-User-Id") Long userId,
             @RequestBody @Valid CourseCreateRequest request
     ) {
-        return courseCreateService.create(userId, request);
+        return courseService.create(userId, request);
     }
 
     @PatchMapping("/{courseId}/status")
@@ -49,11 +45,16 @@ public class CourseController {
             @RequestHeader("X-User-Id") Long userId,
             @RequestBody @Valid CourseStatusUpdateRequest request
     ) {
-        courseStatusUpdateService.updateStatus(courseId, userId, request.status());
+        courseService.updateStatus(courseId, userId, request.status());
     }
 
     @GetMapping
     public List<CourseSummaryResponse> list(@RequestParam(required = false) CourseStatus status) {
-        return courseListService.list(status);
+        return courseService.list(status);
+    }
+
+    @GetMapping("/{courseId}")
+    public CourseResponse getDetail(@PathVariable Long courseId) {
+        return courseService.getDetail(courseId);
     }
 }

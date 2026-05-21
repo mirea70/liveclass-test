@@ -39,7 +39,7 @@ class CourseControllerTest extends ControllerTestSupport {
                 LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31),
                 CourseStatus.DRAFT
         );
-        given(courseCreateService.create(eq(100L), any(CourseCreateRequest.class))).willReturn(response);
+        given(courseService.create(eq(100L), any(CourseCreateRequest.class))).willReturn(response);
 
         // when & then
         mockMvc.perform(post("/api/courses")
@@ -167,7 +167,7 @@ class CourseControllerTest extends ControllerTestSupport {
         // given
         CourseStatusUpdateRequest request = new CourseStatusUpdateRequest(CourseStatus.OPEN);
         willThrow(new BusinessException(CourseErrorInfo.COURSE_NOT_FOUND))
-                .given(courseStatusUpdateService).updateStatus(eq(999L), any(), any());
+                .given(courseService).updateStatus(eq(999L), any(), any());
 
         // when & then
         mockMvc.perform(patch("/api/courses/{courseId}/status", 999L)
@@ -184,7 +184,7 @@ class CourseControllerTest extends ControllerTestSupport {
         // given
         CourseStatusUpdateRequest request = new CourseStatusUpdateRequest(CourseStatus.OPEN);
         willThrow(new BusinessException(CourseErrorInfo.NOT_COURSE_CREATOR))
-                .given(courseStatusUpdateService).updateStatus(eq(1L), eq(999L), any());
+                .given(courseService).updateStatus(eq(1L), eq(999L), any());
 
         // when & then
         mockMvc.perform(patch("/api/courses/{courseId}/status", 1L)
@@ -205,7 +205,7 @@ class CourseControllerTest extends ControllerTestSupport {
                 new CourseSummaryResponse(2L, "강의2", 2000L, 20, 5,
                         LocalDate.of(2026, 7, 1), LocalDate.of(2026, 9, 30), CourseStatus.DRAFT)
         );
-        given(courseListService.list(null)).willReturn(summaries);
+        given(courseService.list(null)).willReturn(summaries);
 
         // when & then
         mockMvc.perform(get("/api/courses"))
@@ -221,12 +221,48 @@ class CourseControllerTest extends ControllerTestSupport {
     @DisplayName("status 쿼리 파라미터가 있으면 service에 해당 status가 전달된다")
     void delegatesStatusToService_whenStatusParamGiven() throws Exception {
         // given
-        given(courseListService.list(CourseStatus.OPEN)).willReturn(List.of());
+        given(courseService.list(CourseStatus.OPEN)).willReturn(List.of());
 
         // when & then
         mockMvc.perform(get("/api/courses").param("status", "OPEN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    @DisplayName("강의 상세 조회 시 200과 강의 정보를 반환한다")
+    void returns200WithCourseDetail_whenCourseExists() throws Exception {
+        // given
+        CourseResponse response = new CourseResponse(
+                1L, 100L, "Spring Boot 마스터", "Spring Boot 실전",
+                99_000L, 30, 5,
+                LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31),
+                CourseStatus.OPEN
+        );
+        given(courseService.getDetail(1L)).willReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/courses/{courseId}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.creatorId").value(100L))
+                .andExpect(jsonPath("$.title").value("Spring Boot 마스터"))
+                .andExpect(jsonPath("$.description").value("Spring Boot 실전"))
+                .andExpect(jsonPath("$.count").value(5))
+                .andExpect(jsonPath("$.status").value("OPEN"));
+    }
+
+    @Test
+    @DisplayName("강의가 존재하지 않으면 상세 조회 시 COURSE_001로 404를 반환한다")
+    void returns404_whenCourseNotFoundOnDetail() throws Exception {
+        // given
+        willThrow(new BusinessException(CourseErrorInfo.COURSE_NOT_FOUND))
+                .given(courseService).getDetail(999L);
+
+        // when & then
+        mockMvc.perform(get("/api/courses/{courseId}", 999L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("COURSE_001"));
     }
 
     private CourseCreateRequest createRequest() {

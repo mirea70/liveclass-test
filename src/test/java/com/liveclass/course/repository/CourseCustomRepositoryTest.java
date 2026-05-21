@@ -5,6 +5,7 @@ import com.liveclass.course.domain.entity.Course;
 import com.liveclass.course.domain.entity.CourseEnrollCount;
 import com.liveclass.course.domain.entity.CourseStatus;
 import com.liveclass.course.domain.vo.CoursePeriod;
+import com.liveclass.course.dto.response.CourseResponse;
 import com.liveclass.course.dto.response.CourseSummaryResponse;
 import com.liveclass.support.JpaTestSupport;
 import org.junit.jupiter.api.DisplayName;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -96,6 +98,44 @@ class CourseCustomRepositoryTest extends JpaTestSupport {
 
         // then
         assertThat(summaries).isEmpty();
+    }
+
+    @Test
+    @DisplayName("findDetail은 강의가 존재하면 모든 필드를 채워서 반환한다")
+    void returnsCourseResponse_whenCourseExists() {
+        // given
+        Course course = saveCourse(CourseStatus.OPEN, "상세 조회 강의");
+        CourseEnrollCount enrollCount = courseEnrollCountRepository.findById(course.getId()).orElseThrow();
+        enrollCount.tryReserve(course.getCapacity());
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        Optional<CourseResponse> result = courseRepository.findDetail(course.getId());
+
+        // then
+        assertThat(result).isPresent();
+        CourseResponse response = result.get();
+        assertThat(response.id()).isEqualTo(course.getId());
+        assertThat(response.creatorId()).isEqualTo(100L);
+        assertThat(response.title()).isEqualTo("상세 조회 강의");
+        assertThat(response.description()).isEqualTo("설명");
+        assertThat(response.price()).isEqualTo(99_000L);
+        assertThat(response.capacity()).isEqualTo(30);
+        assertThat(response.count()).isEqualTo(1);
+        assertThat(response.status()).isEqualTo(CourseStatus.OPEN);
+        assertThat(response.startDate()).isEqualTo(LocalDate.of(2026, 6, 1));
+        assertThat(response.endDate()).isEqualTo(LocalDate.of(2026, 8, 31));
+    }
+
+    @Test
+    @DisplayName("findDetail은 강의가 존재하지 않으면 empty Optional을 반환한다")
+    void returnsEmpty_whenCourseDoesNotExist() {
+        // when
+        Optional<CourseResponse> result = courseRepository.findDetail(9999L);
+
+        // then
+        assertThat(result).isEmpty();
     }
 
     private Course saveCourse(CourseStatus targetStatus, String title) {
