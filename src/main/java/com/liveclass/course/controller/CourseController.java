@@ -1,21 +1,28 @@
 package com.liveclass.course.controller;
 
+import com.liveclass.course.domain.entity.CourseStatus;
 import com.liveclass.course.dto.request.CourseCreateRequest;
 import com.liveclass.course.dto.request.CourseStatusUpdateRequest;
 import com.liveclass.course.dto.response.CourseResponse;
+import com.liveclass.course.dto.response.CourseSummaryResponse;
 import com.liveclass.course.service.CourseCreateService;
+import com.liveclass.course.service.CourseListService;
 import com.liveclass.course.service.CourseStatusUpdateService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -24,6 +31,7 @@ public class CourseController {
 
     private final CourseCreateService courseCreateService;
     private final CourseStatusUpdateService courseStatusUpdateService;
+    private final CourseListService courseListService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -42,5 +50,10 @@ public class CourseController {
             @RequestBody @Valid CourseStatusUpdateRequest request
     ) {
         courseStatusUpdateService.updateStatus(courseId, userId, request.status());
+    }
+
+    @GetMapping
+    public List<CourseSummaryResponse> list(@RequestParam(required = false) CourseStatus status) {
+        return courseListService.list(status);
     }
 }

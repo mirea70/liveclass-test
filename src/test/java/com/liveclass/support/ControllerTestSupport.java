@@ -2,6 +2,7 @@ package com.liveclass.support;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.liveclass.course.service.CourseCreateService;
+import com.liveclass.course.service.CourseListService;
 import com.liveclass.course.service.CourseStatusUpdateService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -24,4 +25,7 @@ public abstract class ControllerTestSupport {
 
     @MockitoBean
     protected CourseStatusUpdateService courseStatusUpdateService;
+
+    @MockitoBean
+    protected CourseListService courseListService;
 }

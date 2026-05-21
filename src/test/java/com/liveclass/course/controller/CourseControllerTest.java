@@ -6,16 +6,20 @@ import com.liveclass.course.domain.entity.CourseStatus;
 import com.liveclass.course.dto.request.CourseCreateRequest;
 import com.liveclass.course.dto.request.CourseStatusUpdateRequest;
 import com.liveclass.course.dto.response.CourseResponse;
+import com.liveclass.course.dto.response.CourseSummaryResponse;
 import com.liveclass.support.ControllerTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -189,6 +193,40 @@ class CourseControllerTest extends ControllerTestSupport {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("COURSE_003"));
+    }
+
+    @Test
+    @DisplayName("강의 목록 조회 시 200과 요약 배열을 반환한다")
+    void returns200WithSummaryList_whenListWithoutFilter() throws Exception {
+        // given
+        List<CourseSummaryResponse> summaries = List.of(
+                new CourseSummaryResponse(1L, "강의1", 1000L, 10, 0,
+                        LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31), CourseStatus.OPEN),
+                new CourseSummaryResponse(2L, "강의2", 2000L, 20, 5,
+                        LocalDate.of(2026, 7, 1), LocalDate.of(2026, 9, 30), CourseStatus.DRAFT)
+        );
+        given(courseListService.list(null)).willReturn(summaries);
+
+        // when & then
+        mockMvc.perform(get("/api/courses"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(1L))
+                .andExpect(jsonPath("$[0].status").value("OPEN"))
+                .andExpect(jsonPath("$[1].id").value(2L));
+    }
+
+    @Test
+    @DisplayName("status 쿼리 파라미터가 있으면 service에 해당 status가 전달된다")
+    void delegatesStatusToService_whenStatusParamGiven() throws Exception {
+        // given
+        given(courseListService.list(CourseStatus.OPEN)).willReturn(List.of());
+
+        // when & then
+        mockMvc.perform(get("/api/courses").param("status", "OPEN"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
     }
 
     private CourseCreateRequest createRequest() {
