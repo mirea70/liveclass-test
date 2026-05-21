@@ -5,7 +5,7 @@ import com.liveclass.course.domain.entity.Course;
 import com.liveclass.course.domain.entity.CourseEnrollCount;
 import com.liveclass.course.domain.vo.CoursePeriod;
 import com.liveclass.course.dto.request.CourseCreateRequest;
-import com.liveclass.course.dto.response.CourseCreateResponse;
+import com.liveclass.course.dto.response.CourseResponse;
 import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ public class CourseCreateService {
     private final CourseEnrollCountRepository courseEnrollCountRepository;
 
     @Transactional
-    public CourseCreateResponse create(Long creatorId, CourseCreateRequest request) {
+    public CourseResponse create(Long creatorId, CourseCreateRequest request) {
         Course course = courseRepository.save(
                 Course.createNew(
                         creatorId,
@@ -32,6 +32,6 @@ public class CourseCreateService {
                 )
         );
         CourseEnrollCount countEntity = courseEnrollCountRepository.save(CourseEnrollCount.createNew(course.getId()));
-        return CourseCreateResponse.from(course, countEntity.getCount());
+        return CourseResponse.from(course, countEntity.getCount());
     }
 }

@@ -4,7 +4,7 @@ import com.liveclass.course.domain.entity.Course;
 import com.liveclass.course.domain.entity.CourseEnrollCount;
 import com.liveclass.course.domain.entity.CourseStatus;
 import com.liveclass.course.dto.request.CourseCreateRequest;
-import com.liveclass.course.dto.response.CourseCreateResponse;
+import com.liveclass.course.dto.response.CourseResponse;
 import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -106,7 +106,7 @@ class CourseCreateServiceTest {
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        CourseCreateResponse response = courseCreateService.create(creatorId, request);
+        CourseResponse response = courseCreateService.create(creatorId, request);
 
         // then
         assertThat(response.id()).isEqualTo(1L);

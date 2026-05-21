@@ -1,8 +1,11 @@
 package com.liveclass.course.controller;
 
+import com.liveclass.common.error.exception.BusinessException;
+import com.liveclass.common.error.info.CourseErrorInfo;
 import com.liveclass.course.domain.entity.CourseStatus;
 import com.liveclass.course.dto.request.CourseCreateRequest;
-import com.liveclass.course.dto.response.CourseCreateResponse;
+import com.liveclass.course.dto.request.CourseStatusUpdateRequest;
+import com.liveclass.course.dto.response.CourseResponse;
 import com.liveclass.support.ControllerTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,6 +15,8 @@ import java.time.LocalDate;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -24,7 +29,7 @@ class CourseControllerTest extends ControllerTestSupport {
     void returns201Created_whenValidRequest() throws Exception {
         // given
         CourseCreateRequest request = createRequest();
-        CourseCreateResponse response = new CourseCreateResponse(
+        CourseResponse response = new CourseResponse(
                 1L, 100L, "Spring Boot 마스터", "Spring Boot 실전",
                 99_000L, 30, 0,
                 LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31),
@@ -109,6 +114,81 @@ class CourseControllerTest extends ControllerTestSupport {
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("강의 상태 변경 요청이 유효하면 204 No Content를 반환한다")
+    void returns204_whenValidStatusUpdateRequest() throws Exception {
+        // given
+        CourseStatusUpdateRequest request = new CourseStatusUpdateRequest(CourseStatus.OPEN);
+
+        // when & then
+        mockMvc.perform(patch("/api/courses/{courseId}/status", 1L)
+                        .header("X-User-Id", 100L)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("강의 상태 변경 요청에 status가 없으면 400을 반환한다")
+    void returns400_whenStatusFieldMissing() throws Exception {
+        // given
+        String emptyBody = "{}";
+
+        // when & then
+        mockMvc.perform(patch("/api/courses/{courseId}/status", 1L)
+                        .header("X-User-Id", 100L)
+                        .contentType("application/json")
+                        .content(emptyBody))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("강의 상태 변경 요청에 X-User-Id 헤더가 없으면 400을 반환한다")
+    void returns400_whenUserIdHeaderMissingForStatusUpdate() throws Exception {
+        // given
+        CourseStatusUpdateRequest request = new CourseStatusUpdateRequest(CourseStatus.OPEN);
+
+        // when & then
+        mockMvc.perform(patch("/api/courses/{courseId}/status", 1L)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("강의가 존재하지 않으면 404를 반환한다")
+    void returns404_whenCourseNotFoundOnStatusUpdate() throws Exception {
+        // given
+        CourseStatusUpdateRequest request = new CourseStatusUpdateRequest(CourseStatus.OPEN);
+        willThrow(new BusinessException(CourseErrorInfo.COURSE_NOT_FOUND))
+                .given(courseStatusUpdateService).updateStatus(eq(999L), any(), any());
+
+        // when & then
+        mockMvc.perform(patch("/api/courses/{courseId}/status", 999L)
+                        .header("X-User-Id", 100L)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("COURSE_001"));
+    }
+
+    @Test
+    @DisplayName("크리에이터가 아니면 403을 반환한다")
+    void returns403_whenNotCreator() throws Exception {
+        // given
+        CourseStatusUpdateRequest request = new CourseStatusUpdateRequest(CourseStatus.OPEN);
+        willThrow(new BusinessException(CourseErrorInfo.NOT_COURSE_CREATOR))
+                .given(courseStatusUpdateService).updateStatus(eq(1L), eq(999L), any());
+
+        // when & then
+        mockMvc.perform(patch("/api/courses/{courseId}/status", 1L)
+                        .header("X-User-Id", 999L)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("COURSE_003"));
     }
 
     private CourseCreateRequest createRequest() {

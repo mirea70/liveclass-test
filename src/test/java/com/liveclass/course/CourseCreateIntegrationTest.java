@@ -4,7 +4,7 @@ import com.liveclass.course.domain.entity.Course;
 import com.liveclass.course.domain.entity.CourseEnrollCount;
 import com.liveclass.course.domain.entity.CourseStatus;
 import com.liveclass.course.dto.request.CourseCreateRequest;
-import com.liveclass.course.dto.response.CourseCreateResponse;
+import com.liveclass.course.dto.response.CourseResponse;
 import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.support.IntegrationTestSupport;
@@ -55,8 +55,8 @@ class CourseCreateIntegrationTest extends IntegrationTestSupport {
                 .andReturn();
 
         // then
-        CourseCreateResponse response = objectMapper.readValue(
-                result.getResponse().getContentAsString(), CourseCreateResponse.class);
+        CourseResponse response = objectMapper.readValue(
+                result.getResponse().getContentAsString(), CourseResponse.class);
         Long courseId = response.id();
 
         Course saved = courseRepository.findById(courseId).orElseThrow();

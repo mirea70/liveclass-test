@@ -5,7 +5,7 @@ import com.liveclass.course.domain.entity.CourseStatus;
 
 import java.time.LocalDate;
 
-public record CourseCreateResponse(
+public record CourseResponse(
         Long id,
         Long creatorId,
         String title,
@@ -18,8 +18,8 @@ public record CourseCreateResponse(
         CourseStatus status
 ) {
 
-    public static CourseCreateResponse from(Course course, int count) {
-        return new CourseCreateResponse(
+    public static CourseResponse from(Course course, int count) {
+        return new CourseResponse(
                 course.getId(),
                 course.getCreatorId(),
                 course.getTitle(),
