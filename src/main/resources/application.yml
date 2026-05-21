@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: liveclass
+
+  datasource:
+    url: jdbc:h2:file:./data/liveclass;MODE=MySQL;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+        default_batch_fetch_size: 100
+    open-in-view: false
+    show-sql: false
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+logging:
+  level:
+    org.hibernate.SQL: info
+    org.hibernate.orm.jdbc.bind: trace
+
+server:
+  port: 8080
