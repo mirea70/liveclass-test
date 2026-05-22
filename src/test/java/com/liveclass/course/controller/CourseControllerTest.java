@@ -54,7 +54,7 @@ class CourseControllerTest extends ControllerTestSupport {
                 .andExpect(jsonPath("$.title").value("Spring Boot 마스터"))
                 .andExpect(jsonPath("$.price").value(99_000L))
                 .andExpect(jsonPath("$.capacity").value(30))
-                .andExpect(jsonPath("$.count").value(0))
+                .andExpect(jsonPath("$.enrollCount").value(0))
                 .andExpect(jsonPath("$.status").value("DRAFT"));
     }
 
@@ -207,7 +207,7 @@ class CourseControllerTest extends ControllerTestSupport {
                 new CourseSummaryResponse(2L, "강의2", 2000L, 20, 5,
                         LocalDate.of(2026, 7, 1), LocalDate.of(2026, 9, 30), CourseStatus.DRAFT)
         );
-        given(courseService.list(null)).willReturn(summaries);
+        given(courseService.getList(null)).willReturn(summaries);
 
         // when & then
         mockMvc.perform(get("/api/courses"))
@@ -223,7 +223,7 @@ class CourseControllerTest extends ControllerTestSupport {
     @DisplayName("status 쿼리 파라미터가 있으면 service에 해당 status가 전달된다")
     void delegatesStatusToService_whenStatusParamGiven() throws Exception {
         // given
-        given(courseService.list(CourseStatus.OPEN)).willReturn(List.of());
+        given(courseService.getList(CourseStatus.OPEN)).willReturn(List.of());
 
         // when & then
         mockMvc.perform(get("/api/courses").param("status", "OPEN"))
@@ -250,7 +250,7 @@ class CourseControllerTest extends ControllerTestSupport {
                 .andExpect(jsonPath("$.creatorId").value(100L))
                 .andExpect(jsonPath("$.title").value("Spring Boot 마스터"))
                 .andExpect(jsonPath("$.description").value("Spring Boot 실전"))
-                .andExpect(jsonPath("$.count").value(5))
+                .andExpect(jsonPath("$.enrollCount").value(5))
                 .andExpect(jsonPath("$.status").value("OPEN"));
     }
 

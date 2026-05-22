@@ -51,7 +51,7 @@ class CourseCreateIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.status").value("DRAFT"))
-                .andExpect(jsonPath("$.count").value(0))
+                .andExpect(jsonPath("$.enrollCount").value(0))
                 .andReturn();
 
         // then

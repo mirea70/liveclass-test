@@ -82,7 +82,7 @@ class CourseCustomRepositoryTest extends JpaTestSupport {
 
         // then
         assertThat(summaries).hasSize(1);
-        assertThat(summaries.get(0).count()).isEqualTo(3);
+        assertThat(summaries.getFirst().enrollCount()).isEqualTo(3);
     }
 
     @Test
@@ -122,7 +122,7 @@ class CourseCustomRepositoryTest extends JpaTestSupport {
         assertThat(response.description()).isEqualTo("설명");
         assertThat(response.price()).isEqualTo(99_000L);
         assertThat(response.capacity()).isEqualTo(30);
-        assertThat(response.count()).isEqualTo(1);
+        assertThat(response.enrollCount()).isEqualTo(1);
         assertThat(response.status()).isEqualTo(CourseStatus.OPEN);
         assertThat(response.startDate()).isEqualTo(LocalDate.of(2026, 6, 1));
         assertThat(response.endDate()).isEqualTo(LocalDate.of(2026, 8, 31));

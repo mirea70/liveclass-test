@@ -58,7 +58,7 @@ public class CourseService {
         applyTransition(course, targetStatus);
     }
 
-    public List<CourseSummaryResponse> list(CourseStatus status) {
+    public List<CourseSummaryResponse> getList(CourseStatus status) {
         return courseRepository.findSummaries(status);
     }
 

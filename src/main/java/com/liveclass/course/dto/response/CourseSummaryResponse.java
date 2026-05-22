@@ -9,7 +9,7 @@ public record CourseSummaryResponse(
         String title,
         long price,
         int capacity,
-        int count,
+        int enrollCount,
         LocalDate startDate,
         LocalDate endDate,
         CourseStatus status

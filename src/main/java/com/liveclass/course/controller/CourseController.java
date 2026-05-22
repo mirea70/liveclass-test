@@ -53,8 +53,8 @@ public class CourseController {
     }
 
     @GetMapping
-    public List<CourseSummaryResponse> list(@RequestParam(required = false) CourseStatus status) {
-        return courseService.list(status);
+    public List<CourseSummaryResponse> getList(@RequestParam(required = false) CourseStatus status) {
+        return courseService.getList(status);
     }
 
     @GetMapping("/{courseId}")

@@ -43,7 +43,7 @@ class CourseDetailIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.description").value("Spring Boot 실전 강의"))
                 .andExpect(jsonPath("$.price").value(99_000L))
                 .andExpect(jsonPath("$.capacity").value(30))
-                .andExpect(jsonPath("$.count").value(3))
+                .andExpect(jsonPath("$.enrollCount").value(3))
                 .andExpect(jsonPath("$.startDate").value("2026-06-01"))
                 .andExpect(jsonPath("$.endDate").value("2026-08-31"))
                 .andExpect(jsonPath("$.status").value("DRAFT"));

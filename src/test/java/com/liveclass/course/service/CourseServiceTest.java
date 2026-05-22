@@ -129,7 +129,7 @@ class CourseServiceTest {
             assertThat(response.title()).isEqualTo("Spring Boot 마스터");
             assertThat(response.price()).isEqualTo(99_000L);
             assertThat(response.capacity()).isEqualTo(30);
-            assertThat(response.count()).isZero();
+            assertThat(response.enrollCount()).isZero();
             assertThat(response.status()).isEqualTo(CourseStatus.DRAFT);
         }
     }
@@ -236,7 +236,7 @@ class CourseServiceTest {
             given(courseRepository.findSummaries(null)).willReturn(expected);
 
             // when
-            List<CourseSummaryResponse> result = courseService.list(null);
+            List<CourseSummaryResponse> result = courseService.getList(null);
 
             // then
             assertThat(result).isEqualTo(expected);
@@ -251,7 +251,7 @@ class CourseServiceTest {
             given(courseRepository.findSummaries(CourseStatus.OPEN)).willReturn(expected);
 
             // when
-            List<CourseSummaryResponse> result = courseService.list(CourseStatus.OPEN);
+            List<CourseSummaryResponse> result = courseService.getList(CourseStatus.OPEN);
 
             // then
             assertThat(result).isEqualTo(expected);
