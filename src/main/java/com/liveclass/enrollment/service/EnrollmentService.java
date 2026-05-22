@@ -18,6 +18,7 @@ import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -39,6 +40,20 @@ public class EnrollmentService {
         validateDuplicated(courseId, userId);
         Enrollment enrollment = reserveOrEnqueue(course, userId);
         return EnrollmentResponse.from(saveOrThrowDuplicate(enrollment));
+    }
+
+    @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 10)
+    @Transactional
+    public EnrollmentResponse confirm(Long enrollmentId, Long userId) {
+        Enrollment enrollment = getEnrollment(enrollmentId);
+        enrollment.verifyOwner(userId);
+        enrollment.confirm(LocalDateTime.now());
+        return EnrollmentResponse.from(enrollment);
+    }
+
+    private Enrollment getEnrollment(Long enrollmentId) {
+        return enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new BusinessException(EnrollmentErrorInfo.ENROLLMENT_NOT_FOUND));
     }
 
     private Course getOpenCourse(Long courseId) {

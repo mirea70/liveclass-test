@@ -6,6 +6,7 @@ import com.liveclass.enrollment.service.EnrollmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -30,5 +31,13 @@ public class EnrollmentController {
         return ResponseEntity
                 .created(URI.create("/api/enrollments/" + response.id()))
                 .body(response);
+    }
+
+    @PostMapping("/{enrollmentId}/confirmation")
+    public EnrollmentResponse confirm(
+            @PathVariable Long enrollmentId,
+            @RequestHeader("X-User-Id") Long userId
+    ) {
+        return enrollmentService.confirm(enrollmentId, userId);
     }
 }

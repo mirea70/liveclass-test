@@ -13,6 +13,7 @@ import com.liveclass.enrollment.domain.entity.Enrollment;
 import com.liveclass.enrollment.domain.entity.EnrollmentStatus;
 import com.liveclass.enrollment.dto.response.EnrollmentResponse;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +24,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,6 +39,7 @@ class EnrollmentServiceTest {
 
     private static final Long COURSE_ID = 1L;
     private static final Long USER_ID = 200L;
+    private static final Long OTHER_USER_ID = 999L;
     private static final Long ENROLLMENT_ID = 10L;
 
     @InjectMocks
@@ -162,6 +165,73 @@ class EnrollmentServiceTest {
                 .isEqualTo(CourseErrorInfo.COURSE_NOT_FOUND);
     }
 
+    @Nested
+    @DisplayName("결제 확정 (confirm)")
+    class Confirm {
+
+        @Test
+        @DisplayName("PENDING 신청에 본인이 confirm을 요청하면 CONFIRMED로 전이되고 confirmedAt이 설정된다")
+        void transitionsToConfirmed_whenValidPendingRequest() {
+            // given
+            Long enrollmentId = 10L;
+            Enrollment enrollment = Enrollment.createPending(COURSE_ID, USER_ID);
+            given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
+
+            // when
+            EnrollmentResponse response = enrollmentService.confirm(enrollmentId, USER_ID);
+
+            // then
+            assertThat(response.status()).isEqualTo(EnrollmentStatus.CONFIRMED);
+            assertThat(response.confirmedAt()).isNotNull();
+            assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.CONFIRMED);
+            assertThat(enrollment.getConfirmedAt()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("신청자 본인이 아니면 NOT_ENROLLMENT_OWNER BusinessException이 발생한다")
+        void throwsNotEnrollmentOwner_whenRequesterIsNotOwner() {
+            // given
+            Long enrollmentId = 10L;
+            Enrollment enrollment = Enrollment.createPending(COURSE_ID, USER_ID);
+            given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
+
+            // when & then
+            assertThatThrownBy(() -> enrollmentService.confirm(enrollmentId, OTHER_USER_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorInfo())
+                    .isEqualTo(EnrollmentErrorInfo.NOT_ENROLLMENT_OWNER);
+            assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.PENDING);
+        }
+
+        @Test
+        @DisplayName("PENDING이 아닌 신청에 confirm을 요청하면 NOT_CONFIRMABLE_STATUS BusinessException이 발생한다")
+        void throwsNotConfirmableStatus_whenEnrollmentIsNotPending() {
+            // given
+            Long enrollmentId = 10L;
+            Enrollment enrollment = Enrollment.createWaiting(COURSE_ID, USER_ID);
+            given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
+
+            // when & then
+            assertThatThrownBy(() -> enrollmentService.confirm(enrollmentId, USER_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorInfo())
+                    .isEqualTo(EnrollmentErrorInfo.NOT_CONFIRMABLE_STATUS);
+        }
+
+        @Test
+        @DisplayName("신청이 존재하지 않으면 ENROLLMENT_NOT_FOUND BusinessException이 발생한다")
+        void throwsEnrollmentNotFound_whenEnrollmentDoesNotExist() {
+            // given
+            Long enrollmentId = 9999L;
+            given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> enrollmentService.confirm(enrollmentId, USER_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorInfo())
+                    .isEqualTo(EnrollmentErrorInfo.ENROLLMENT_NOT_FOUND);
+        }
+    }
     private Course createDraftCourse(int capacity) {
         Course course = Course.createNew(
                 100L, "Spring Boot 마스터", "Spring Boot 실전",

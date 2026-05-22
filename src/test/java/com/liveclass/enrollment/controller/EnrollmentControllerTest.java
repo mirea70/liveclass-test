@@ -131,6 +131,74 @@ class EnrollmentControllerTest extends ControllerTestSupport {
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_002"));
     }
 
+    @Test
+    @DisplayName("PENDING 신청에 본인이 confirm을 호출하면 200과 CONFIRMED 응답을 반환한다")
+    void returns200WithConfirmed_whenConfirmSucceeds() throws Exception {
+        // given
+        java.time.LocalDateTime confirmedAt = java.time.LocalDateTime.of(2026, 5, 22, 10, 0);
+        EnrollmentResponse confirmed = new EnrollmentResponse(
+                ENROLLMENT_ID, COURSE_ID, USER_ID, EnrollmentStatus.CONFIRMED, confirmedAt, null);
+        given(enrollmentService.confirm(ENROLLMENT_ID, USER_ID)).willReturn(confirmed);
+
+        // when & then
+        mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", ENROLLMENT_ID)
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(ENROLLMENT_ID))
+                .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.confirmedAt").value("2026-05-22T10:00:00"));
+    }
+
+    @Test
+    @DisplayName("X-User-Id 헤더가 없으면 confirm 요청 시 400을 반환한다")
+    void returns400_whenUserIdHeaderMissingOnConfirm() throws Exception {
+        // when & then
+        mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", ENROLLMENT_ID))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("신청 본인이 아니면 ENROLLMENT_004로 403을 반환한다")
+    void returns403_whenNotEnrollmentOwner() throws Exception {
+        // given
+        willThrow(new BusinessException(EnrollmentErrorInfo.NOT_ENROLLMENT_OWNER))
+                .given(enrollmentService).confirm(ENROLLMENT_ID, USER_ID);
+
+        // when & then
+        mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", ENROLLMENT_ID)
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ENROLLMENT_004"));
+    }
+
+    @Test
+    @DisplayName("PENDING이 아니면 ENROLLMENT_005로 409를 반환한다")
+    void returns409_whenNotConfirmableStatus() throws Exception {
+        // given
+        willThrow(new BusinessException(EnrollmentErrorInfo.NOT_CONFIRMABLE_STATUS))
+                .given(enrollmentService).confirm(ENROLLMENT_ID, USER_ID);
+
+        // when & then
+        mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", ENROLLMENT_ID)
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ENROLLMENT_005"));
+    }
+
+    @Test
+    @DisplayName("신청이 존재하지 않으면 ENROLLMENT_003으로 404를 반환한다")
+    void returns404_whenEnrollmentNotFound() throws Exception {
+        // given
+        willThrow(new BusinessException(EnrollmentErrorInfo.ENROLLMENT_NOT_FOUND))
+                .given(enrollmentService).confirm(ENROLLMENT_ID, USER_ID);
+
+        // when & then
+        mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", ENROLLMENT_ID)
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ENROLLMENT_003"));
+    }
+
     private EnrollmentResponse pendingResponse() {
         return new EnrollmentResponse(ENROLLMENT_ID, COURSE_ID, USER_ID, EnrollmentStatus.PENDING, null, null);
     }
