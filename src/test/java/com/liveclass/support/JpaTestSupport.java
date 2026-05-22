@@ -3,6 +3,7 @@ package com.liveclass.support;
 import com.liveclass.common.config.JpaConfig;
 import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
+import com.liveclass.enrollment.repository.EnrollmentRepository;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -24,4 +25,7 @@ public abstract class JpaTestSupport {
 
     @Autowired
     protected CourseEnrollCountRepository courseEnrollCountRepository;
+
+    @Autowired
+    protected EnrollmentRepository enrollmentRepository;
 }
