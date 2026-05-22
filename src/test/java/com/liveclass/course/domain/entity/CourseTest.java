@@ -148,6 +148,39 @@ class CourseTest {
                 .isEqualTo(CourseErrorInfo.INVALID_STATUS_TRANSITION);
     }
 
+    @Test
+    @DisplayName("OPEN 상태이면 isOpen()은 true를 반환한다")
+    void returnsTrue_whenOpen() {
+        // given
+        Course course = createCourse(30);
+        course.open();
+
+        // when & then
+        assertThat(course.isOpen()).isTrue();
+    }
+
+    @Test
+    @DisplayName("DRAFT 상태이면 isOpen()은 false를 반환한다")
+    void returnsFalse_whenDraft() {
+        // given
+        Course course = createCourse(30);
+
+        // when & then
+        assertThat(course.isOpen()).isFalse();
+    }
+
+    @Test
+    @DisplayName("CLOSED 상태이면 isOpen()은 false를 반환한다")
+    void returnsFalse_whenClosed() {
+        // given
+        Course course = createCourse(30);
+        course.open();
+        course.close();
+
+        // when & then
+        assertThat(course.isOpen()).isFalse();
+    }
+
     private Course createCourse(int capacity) {
         return Course.createNew(
                 100L,

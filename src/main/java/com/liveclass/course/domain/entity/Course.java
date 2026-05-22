@@ -90,6 +90,10 @@ public class Course extends BaseEntity {
         this.status = CourseStatus.OPEN;
     }
 
+    public boolean isOpen() {
+        return this.status == CourseStatus.OPEN;
+    }
+
     public void close() {
         if (this.status != CourseStatus.OPEN) {
             throw new DomainException(CourseErrorInfo.INVALID_STATUS_TRANSITION);
