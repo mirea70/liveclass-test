@@ -199,6 +199,88 @@ class EnrollmentControllerTest extends ControllerTestSupport {
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_003"));
     }
 
+    @Test
+    @DisplayName("정상 cancel 요청이면 200과 CANCELLED 응답을 반환한다")
+    void returns200WithCancelled_whenCancelSucceeds() throws Exception {
+        // given
+        java.time.LocalDateTime cancelledAt = java.time.LocalDateTime.of(2026, 5, 22, 12, 0);
+        EnrollmentResponse cancelled = new EnrollmentResponse(
+                ENROLLMENT_ID, COURSE_ID, USER_ID, EnrollmentStatus.CANCELLED, null, cancelledAt);
+        given(enrollmentService.cancel(ENROLLMENT_ID, USER_ID)).willReturn(cancelled);
+
+        // when & then
+        mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", ENROLLMENT_ID)
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(ENROLLMENT_ID))
+                .andExpect(jsonPath("$.status").value("CANCELLED"))
+                .andExpect(jsonPath("$.cancelledAt").value("2026-05-22T12:00:00"));
+    }
+
+    @Test
+    @DisplayName("X-User-Id 헤더가 없으면 cancel 요청 시 400을 반환한다")
+    void returns400_whenUserIdHeaderMissingOnCancel() throws Exception {
+        // when & then
+        mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", ENROLLMENT_ID))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("cancel 시 본인이 아니면 ENROLLMENT_004로 403을 반환한다")
+    void returns403_whenNotOwnerOnCancel() throws Exception {
+        // given
+        willThrow(new BusinessException(EnrollmentErrorInfo.NOT_ENROLLMENT_OWNER))
+                .given(enrollmentService).cancel(ENROLLMENT_ID, USER_ID);
+
+        // when & then
+        mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", ENROLLMENT_ID)
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ENROLLMENT_004"));
+    }
+
+    @Test
+    @DisplayName("cancel 시 7일 초과면 ENROLLMENT_006으로 400을 반환한다")
+    void returns400_whenCancellationWindowExpired() throws Exception {
+        // given
+        willThrow(new BusinessException(EnrollmentErrorInfo.CANCELLATION_WINDOW_EXPIRED))
+                .given(enrollmentService).cancel(ENROLLMENT_ID, USER_ID);
+
+        // when & then
+        mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", ENROLLMENT_ID)
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ENROLLMENT_006"));
+    }
+
+    @Test
+    @DisplayName("cancel 시 이미 CANCELLED이면 ENROLLMENT_007로 409를 반환한다")
+    void returns409_whenAlreadyCancelled() throws Exception {
+        // given
+        willThrow(new BusinessException(EnrollmentErrorInfo.ALREADY_CANCELLED))
+                .given(enrollmentService).cancel(ENROLLMENT_ID, USER_ID);
+
+        // when & then
+        mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", ENROLLMENT_ID)
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ENROLLMENT_007"));
+    }
+
+    @Test
+    @DisplayName("cancel 시 신청이 없으면 ENROLLMENT_003으로 404를 반환한다")
+    void returns404_whenEnrollmentNotFoundOnCancel() throws Exception {
+        // given
+        willThrow(new BusinessException(EnrollmentErrorInfo.ENROLLMENT_NOT_FOUND))
+                .given(enrollmentService).cancel(ENROLLMENT_ID, USER_ID);
+
+        // when & then
+        mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", ENROLLMENT_ID)
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ENROLLMENT_003"));
+    }
+
     private EnrollmentResponse pendingResponse() {
         return new EnrollmentResponse(ENROLLMENT_ID, COURSE_ID, USER_ID, EnrollmentStatus.PENDING, null, null);
     }

@@ -18,8 +18,10 @@ import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +30,7 @@ public class EnrollmentService {
 
     private static final List<EnrollmentStatus> ACTIVE_STATUSES =
             List.of(EnrollmentStatus.WAITING, EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED);
+    private static final Duration CANCELLATION_WINDOW = Duration.ofDays(7);
 
     private final CourseRepository courseRepository;
     private final CourseEnrollCountRepository courseEnrollCountRepository;
@@ -49,6 +52,31 @@ public class EnrollmentService {
         enrollment.verifyOwner(userId);
         enrollment.confirm(LocalDateTime.now());
         return EnrollmentResponse.from(enrollment);
+    }
+
+    @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 10)
+    @Transactional
+    public EnrollmentResponse cancel(Long enrollmentId, Long userId) {
+        Enrollment enrollment = getEnrollment(enrollmentId);
+        enrollment.verifyOwner(userId);
+        EnrollmentStatus before = enrollment.getStatus();
+        enrollment.cancel(LocalDateTime.now(), CANCELLATION_WINDOW);
+        if (before != EnrollmentStatus.WAITING) {
+            promoteOrRelease(enrollment.getCourseId());
+        }
+        return EnrollmentResponse.from(enrollment);
+    }
+
+    private void promoteOrRelease(Long courseId) {
+        Optional<Enrollment> oldestWaiting = enrollmentRepository
+                .findFirstByCourseIdAndStatusOrderByCreatedAtAsc(courseId, EnrollmentStatus.WAITING);
+        if (oldestWaiting.isPresent()) {
+            oldestWaiting.get().promote();
+            return;
+        }
+        CourseEnrollCount enrollCount = courseEnrollCountRepository.findById(courseId)
+                .orElseThrow(() -> new BusinessException(CourseErrorInfo.COURSE_NOT_FOUND));
+        enrollCount.release();
     }
 
     private Enrollment getEnrollment(Long enrollmentId) {

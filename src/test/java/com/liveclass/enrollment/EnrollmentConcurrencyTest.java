@@ -117,6 +117,58 @@ class EnrollmentConcurrencyTest {
         assertThat(count.getCount()).isEqualTo(capacity);
     }
 
+    @Test
+    @DisplayName("PENDING 1명 + 대기자 50명 상태에서 PENDING이 취소되면 정확히 한 명만 PENDING으로 승격되고 count는 유지된다")
+    void promotesExactlyOneWaiting_whenPendingCancelledWithManyWaiters() throws InterruptedException {
+        // given
+        int capacity = 1;
+        int waitingCount = 50;
+        Long courseId = saveOpenCourseWithCapacity(capacity);
+        Long pendingEnrollmentId = enrollmentRepository.save(
+                com.liveclass.enrollment.domain.entity.Enrollment.createPending(courseId, USER_ID)).getId();
+        com.liveclass.course.domain.entity.CourseEnrollCount counter =
+                courseEnrollCountRepository.findById(courseId).orElseThrow();
+        counter.tryReserve(capacity);
+        courseEnrollCountRepository.save(counter);
+        for (int i = 0; i < waitingCount; i++) {
+            enrollmentRepository.save(
+                    com.liveclass.enrollment.domain.entity.Enrollment.createWaiting(courseId, 1000L + i));
+        }
+
+        // when
+        enrollmentService.cancel(pendingEnrollmentId, USER_ID);
+
+        // then
+        long pendingTotal = countByStatus(EnrollmentStatus.PENDING);
+        long waitingRemaining = countByStatus(EnrollmentStatus.WAITING);
+        assertThat(pendingTotal).isEqualTo(capacity);
+        assertThat(waitingRemaining).isEqualTo(waitingCount - 1);
+        assertThat(courseEnrollCountRepository.findById(courseId).orElseThrow().getCount()).isEqualTo(capacity);
+    }
+
+    @Test
+    @DisplayName("같은 enrollment에 동시에 cancel 50건이 들어와도 최종적으로 1건만 성공한다")
+    void cancelsExactlyOnce_whenConcurrentCancelOnSameEnrollment() throws InterruptedException {
+        // given
+        Long courseId = saveOpenCourseWithCapacity(30);
+        Long pendingEnrollmentId = enrollmentRepository.save(
+                com.liveclass.enrollment.domain.entity.Enrollment.createPending(courseId, USER_ID)).getId();
+        com.liveclass.course.domain.entity.CourseEnrollCount counter =
+                courseEnrollCountRepository.findById(courseId).orElseThrow();
+        counter.tryReserve(30);
+        courseEnrollCountRepository.save(counter);
+        int threadCount = 50;
+
+        // when
+        runConcurrent(threadCount, () -> enrollmentService.cancel(pendingEnrollmentId, USER_ID));
+
+        // then
+        com.liveclass.enrollment.domain.entity.Enrollment reloaded =
+                enrollmentRepository.findById(pendingEnrollmentId).orElseThrow();
+        assertThat(reloaded.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
+        assertThat(courseEnrollCountRepository.findById(courseId).orElseThrow().getCount()).isZero();
+    }
+
     private long countByStatus(EnrollmentStatus status) {
         return enrollmentRepository.findAll().stream()
                 .filter(e -> e.getStatus() == status)

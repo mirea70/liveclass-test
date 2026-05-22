@@ -40,4 +40,12 @@ public class EnrollmentController {
     ) {
         return enrollmentService.confirm(enrollmentId, userId);
     }
+
+    @PostMapping("/{enrollmentId}/cancellation")
+    public EnrollmentResponse cancel(
+            @PathVariable Long enrollmentId,
+            @RequestHeader("X-User-Id") Long userId
+    ) {
+        return enrollmentService.cancel(enrollmentId, userId);
+    }
 }

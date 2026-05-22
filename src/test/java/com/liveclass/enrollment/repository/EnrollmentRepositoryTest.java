@@ -6,10 +6,12 @@ import com.liveclass.support.JpaTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -102,6 +104,41 @@ class EnrollmentRepositoryTest extends JpaTestSupport {
 
         // then
         assertThat(result).isFalse();
+    }
+
+    @Test
+    @DisplayName("WAITING이 여러 건이면 findFirstByCourseIdAndStatusOrderByCreatedAtAsc는 가장 오래된 1건을 반환한다")
+    void returnsOldestWaiting_whenMultipleWaiting() {
+        // given
+        Enrollment older = enrollmentRepository.saveAndFlush(Enrollment.createWaiting(COURSE_ID, 100L));
+        ReflectionTestUtils.setField(older, "createdAt", LocalDateTime.of(2026, 1, 1, 0, 0));
+        enrollmentRepository.saveAndFlush(older);
+        Enrollment newer = enrollmentRepository.saveAndFlush(Enrollment.createWaiting(COURSE_ID, 200L));
+        ReflectionTestUtils.setField(newer, "createdAt", LocalDateTime.of(2026, 2, 1, 0, 0));
+        enrollmentRepository.saveAndFlush(newer);
+        entityManager.clear();
+
+        // when
+        Optional<Enrollment> result = enrollmentRepository
+                .findFirstByCourseIdAndStatusOrderByCreatedAtAsc(COURSE_ID, EnrollmentStatus.WAITING);
+
+        // then
+        assertThat(result).isPresent();
+        assertThat(result.get().getUserId()).isEqualTo(100L);
+    }
+
+    @Test
+    @DisplayName("해당 강의에 WAITING이 없으면 findFirstByCourseIdAndStatusOrderByCreatedAtAsc는 Optional.empty이다")
+    void returnsEmpty_whenNoWaiting() {
+        // given
+        enrollmentRepository.saveAndFlush(Enrollment.createPending(COURSE_ID, USER_ID));
+
+        // when
+        Optional<Enrollment> result = enrollmentRepository
+                .findFirstByCourseIdAndStatusOrderByCreatedAtAsc(COURSE_ID, EnrollmentStatus.WAITING);
+
+        // then
+        assertThat(result).isEmpty();
     }
 
     @Test

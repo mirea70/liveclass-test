@@ -232,6 +232,157 @@ class EnrollmentServiceTest {
                     .isEqualTo(EnrollmentErrorInfo.ENROLLMENT_NOT_FOUND);
         }
     }
+
+    @Nested
+    @DisplayName("수강 취소 (cancel)")
+    class Cancel {
+
+        @Test
+        @DisplayName("WAITING 신청을 본인이 취소하면 CANCELLED로 전이되고 count는 변경되지 않는다")
+        void cancelsWaiting_whenOwnerRequests() {
+            // given
+            Long enrollmentId = 10L;
+            Enrollment enrollment = Enrollment.createWaiting(COURSE_ID, USER_ID);
+            given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
+
+            // when
+            EnrollmentResponse response = enrollmentService.cancel(enrollmentId, USER_ID);
+
+            // then
+            assertThat(response.status()).isEqualTo(EnrollmentStatus.CANCELLED);
+            assertThat(response.cancelledAt()).isNotNull();
+            assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
+        }
+
+        @Test
+        @DisplayName("PENDING 신청을 취소하고 대기자가 없으면 count가 1 감소한다")
+        void decreasesCount_whenPendingCancelledAndNoWaiting() {
+            // given
+            Long enrollmentId = 10L;
+            Enrollment enrollment = Enrollment.createPending(COURSE_ID, USER_ID);
+            CourseEnrollCount enrollCount = CourseEnrollCount.createNew(COURSE_ID);
+            enrollCount.tryReserve(30);
+            given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
+            given(enrollmentRepository.findFirstByCourseIdAndStatusOrderByCreatedAtAsc(COURSE_ID, EnrollmentStatus.WAITING))
+                    .willReturn(Optional.empty());
+            given(courseEnrollCountRepository.findById(COURSE_ID)).willReturn(Optional.of(enrollCount));
+
+            // when
+            enrollmentService.cancel(enrollmentId, USER_ID);
+
+            // then
+            assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
+            assertThat(enrollCount.getCount()).isZero();
+        }
+
+        @Test
+        @DisplayName("CONFIRMED 신청도 7일 이내라면 취소되고 정원 정리 흐름이 동작한다")
+        void cancelsConfirmed_whenWithinCancellationWindow() {
+            // given
+            Long enrollmentId = 10L;
+            Enrollment enrollment = Enrollment.createPending(COURSE_ID, USER_ID);
+            enrollment.confirm(LocalDateTime.now().minusDays(3));
+            CourseEnrollCount enrollCount = CourseEnrollCount.createNew(COURSE_ID);
+            enrollCount.tryReserve(30);
+            given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
+            given(enrollmentRepository.findFirstByCourseIdAndStatusOrderByCreatedAtAsc(COURSE_ID, EnrollmentStatus.WAITING))
+                    .willReturn(Optional.empty());
+            given(courseEnrollCountRepository.findById(COURSE_ID)).willReturn(Optional.of(enrollCount));
+
+            // when
+            enrollmentService.cancel(enrollmentId, USER_ID);
+
+            // then
+            assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
+            assertThat(enrollCount.getCount()).isZero();
+        }
+
+        @Test
+        @DisplayName("CONFIRMED 신청이 7일을 초과했으면 CANCELLATION_WINDOW_EXPIRED BusinessException이 발생한다")
+        void throwsCancellationWindowExpired_whenConfirmedTooLongAgo() {
+            // given
+            Long enrollmentId = 10L;
+            Enrollment enrollment = Enrollment.createPending(COURSE_ID, USER_ID);
+            enrollment.confirm(LocalDateTime.now().minusDays(8));
+            given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
+
+            // when & then
+            assertThatThrownBy(() -> enrollmentService.cancel(enrollmentId, USER_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorInfo())
+                    .isEqualTo(EnrollmentErrorInfo.CANCELLATION_WINDOW_EXPIRED);
+            assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.CONFIRMED);
+        }
+
+        @Test
+        @DisplayName("PENDING 신청을 취소하고 대기자가 있으면 가장 오래된 WAITING이 PENDING으로 승격되고 count는 유지된다")
+        void promotesOldestWaiting_whenPendingCancelledAndWaitingExists() {
+            // given
+            Long enrollmentId = 10L;
+            Enrollment cancelled = Enrollment.createPending(COURSE_ID, USER_ID);
+            Enrollment oldestWaiting = Enrollment.createWaiting(COURSE_ID, 300L);
+            CourseEnrollCount enrollCount = CourseEnrollCount.createNew(COURSE_ID);
+            enrollCount.tryReserve(30);
+            given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(cancelled));
+            given(enrollmentRepository.findFirstByCourseIdAndStatusOrderByCreatedAtAsc(COURSE_ID, EnrollmentStatus.WAITING))
+                    .willReturn(Optional.of(oldestWaiting));
+
+            // when
+            enrollmentService.cancel(enrollmentId, USER_ID);
+
+            // then
+            assertThat(cancelled.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
+            assertThat(oldestWaiting.getStatus()).isEqualTo(EnrollmentStatus.PENDING);
+            assertThat(enrollCount.getCount()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("신청자 본인이 아니면 NOT_ENROLLMENT_OWNER BusinessException이 발생한다")
+        void throwsNotEnrollmentOwner_whenRequesterIsNotOwner() {
+            // given
+            Long enrollmentId = 10L;
+            Enrollment enrollment = Enrollment.createPending(COURSE_ID, USER_ID);
+            given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
+
+            // when & then
+            assertThatThrownBy(() -> enrollmentService.cancel(enrollmentId, OTHER_USER_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorInfo())
+                    .isEqualTo(EnrollmentErrorInfo.NOT_ENROLLMENT_OWNER);
+            assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.PENDING);
+        }
+
+        @Test
+        @DisplayName("신청이 존재하지 않으면 ENROLLMENT_NOT_FOUND BusinessException이 발생한다")
+        void throwsEnrollmentNotFound_whenEnrollmentDoesNotExist() {
+            // given
+            Long enrollmentId = 9999L;
+            given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> enrollmentService.cancel(enrollmentId, USER_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorInfo())
+                    .isEqualTo(EnrollmentErrorInfo.ENROLLMENT_NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("이미 CANCELLED 상태이면 ALREADY_CANCELLED BusinessException이 발생한다")
+        void throwsAlreadyCancelled_whenAlreadyCancelled() {
+            // given
+            Long enrollmentId = 10L;
+            Enrollment enrollment = Enrollment.createPending(COURSE_ID, USER_ID);
+            enrollment.cancel(LocalDateTime.now().minusDays(1), java.time.Duration.ofDays(7));
+            given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
+
+            // when & then
+            assertThatThrownBy(() -> enrollmentService.cancel(enrollmentId, USER_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorInfo())
+                    .isEqualTo(EnrollmentErrorInfo.ALREADY_CANCELLED);
+        }
+    }
+
     private Course createDraftCourse(int capacity) {
         Course course = Course.createNew(
                 100L, "Spring Boot 마스터", "Spring Boot 실전",
