@@ -12,13 +12,13 @@ public record CourseResponse(
         String description,
         long price,
         int capacity,
-        int count,
+        int enrollCount,
         LocalDate startDate,
         LocalDate endDate,
         CourseStatus status
 ) {
 
-    public static CourseResponse from(Course course, int count) {
+    public static CourseResponse from(Course course, int enrollCount) {
         return new CourseResponse(
                 course.getId(),
                 course.getCreatorId(),
@@ -26,7 +26,7 @@ public record CourseResponse(
                 course.getDescription(),
                 course.getPrice().getAmount(),
                 course.getCapacity(),
-                count,
+                enrollCount,
                 course.getPeriod().getStartDate(),
                 course.getPeriod().getEndDate(),
                 course.getStatus()
