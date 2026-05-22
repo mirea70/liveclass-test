@@ -1,0 +1,38 @@
+package com.liveclass.enrollment.repository;
+
+import com.liveclass.enrollment.domain.entity.EnrollmentStatus;
+import com.liveclass.enrollment.dto.response.StudentResponse;
+import com.querydsl.core.types.Projections;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+
+import static com.liveclass.enrollment.domain.entity.QEnrollment.enrollment;
+import static com.liveclass.member.domain.entity.QMember.member;
+
+@RequiredArgsConstructor
+public class EnrollmentCustomRepositoryImpl implements EnrollmentCustomRepository {
+
+    private static final List<EnrollmentStatus> ACTIVE_STATUSES =
+            List.of(EnrollmentStatus.WAITING, EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED);
+
+    private final JPAQueryFactory queryFactory;
+
+    @Override
+    public List<StudentResponse> findStudentsByCourse(Long courseId) {
+        return queryFactory
+                .select(Projections.constructor(StudentResponse.class,
+                        enrollment.memberId,
+                        member.name,
+                        enrollment.status,
+                        enrollment.confirmedAt,
+                        enrollment.createdAt
+                ))
+                .from(enrollment)
+                .innerJoin(member).on(member.id.eq(enrollment.memberId))
+                .where(enrollment.courseId.eq(courseId), enrollment.status.in(ACTIVE_STATUSES))
+                .orderBy(enrollment.createdAt.desc())
+                .fetch();
+    }
+}

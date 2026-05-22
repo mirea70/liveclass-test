@@ -10,6 +10,7 @@ import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.domain.entity.Enrollment;
 import com.liveclass.enrollment.domain.entity.EnrollmentStatus;
 import com.liveclass.enrollment.dto.response.EnrollmentResponse;
+import com.liveclass.enrollment.dto.response.StudentResponse;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -77,6 +78,14 @@ public class EnrollmentService {
         CourseEnrollCount enrollCount = courseEnrollCountRepository.findById(courseId)
                 .orElseThrow(() -> new BusinessException(CourseErrorInfo.COURSE_NOT_FOUND));
         enrollCount.release();
+    }
+
+    public List<StudentResponse> getStudentsByCourse(Long courseId, Long requesterId) {
+        Course course = getCourse(courseId);
+        if (!course.getCreatorId().equals(requesterId)) {
+            throw new BusinessException(CourseErrorInfo.NOT_COURSE_CREATOR);
+        }
+        return enrollmentRepository.findStudentsByCourse(courseId);
     }
 
     private Enrollment getEnrollment(Long enrollmentId) {

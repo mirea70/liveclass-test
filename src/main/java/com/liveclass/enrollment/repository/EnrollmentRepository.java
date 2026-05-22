@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Collection;
 import java.util.Optional;
 
-public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
+public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, EnrollmentCustomRepository {
 
     boolean existsByCourseIdAndMemberIdAndStatusIn(Long courseId, Long memberId, Collection<EnrollmentStatus> statuses);
 

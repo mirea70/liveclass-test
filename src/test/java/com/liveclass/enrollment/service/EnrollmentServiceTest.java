@@ -12,6 +12,7 @@ import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.domain.entity.Enrollment;
 import com.liveclass.enrollment.domain.entity.EnrollmentStatus;
 import com.liveclass.enrollment.dto.response.EnrollmentResponse;
+import com.liveclass.enrollment.dto.response.StudentResponse;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.DisplayName;
@@ -380,6 +381,71 @@ class EnrollmentServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorInfo())
                     .isEqualTo(EnrollmentErrorInfo.ALREADY_CANCELLED);
+        }
+    }
+
+    @Nested
+    @DisplayName("강의별 수강생 조회 (getStudentsByCourse)")
+    class GetStudentsByCourse {
+
+        @Test
+        @DisplayName("크리에이터 본인이 호출하면 Repository 결과를 그대로 반환한다")
+        void returnsRepositoryResult_whenCalledByCreator() {
+            // given
+            Long creatorId = 100L;
+            Course course = createCourseOwnedBy(creatorId);
+            List<StudentResponse> expected = List.of(
+                    new StudentResponse(200L, "홍길동", EnrollmentStatus.CONFIRMED,
+                            LocalDateTime.of(2026, 5, 19, 10, 0), LocalDateTime.of(2026, 5, 18, 9, 0)),
+                    new StudentResponse(201L, "이몽룡", EnrollmentStatus.PENDING,
+                            null, LocalDateTime.of(2026, 5, 20, 9, 0))
+            );
+            given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
+            given(enrollmentRepository.findStudentsByCourse(COURSE_ID)).willReturn(expected);
+
+            // when
+            List<StudentResponse> result = enrollmentService.getStudentsByCourse(COURSE_ID, creatorId);
+
+            // then
+            assertThat(result).isEqualTo(expected);
+        }
+
+        @Test
+        @DisplayName("요청자가 크리에이터가 아니면 NOT_COURSE_CREATOR BusinessException이 발생한다")
+        void throwsNotCourseCreator_whenRequesterIsNotCreator() {
+            // given
+            Long creatorId = 100L;
+            Long otherRequester = 999L;
+            Course course = createCourseOwnedBy(creatorId);
+            given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
+
+            // when & then
+            assertThatThrownBy(() -> enrollmentService.getStudentsByCourse(COURSE_ID, otherRequester))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorInfo())
+                    .isEqualTo(CourseErrorInfo.NOT_COURSE_CREATOR);
+        }
+
+        @Test
+        @DisplayName("강의가 존재하지 않으면 COURSE_NOT_FOUND BusinessException이 발생한다")
+        void throwsCourseNotFound_whenCourseDoesNotExist() {
+            // given
+            given(courseRepository.findById(COURSE_ID)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> enrollmentService.getStudentsByCourse(COURSE_ID, 100L))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorInfo())
+                    .isEqualTo(CourseErrorInfo.COURSE_NOT_FOUND);
+        }
+
+        private Course createCourseOwnedBy(Long creatorId) {
+            Course course = Course.createNew(
+                    creatorId, "Spring Boot 마스터", "Spring Boot 실전",
+                    new Money(99_000L), 30,
+                    new CoursePeriod(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31)));
+            ReflectionTestUtils.setField(course, "id", COURSE_ID);
+            return course;
         }
     }
 

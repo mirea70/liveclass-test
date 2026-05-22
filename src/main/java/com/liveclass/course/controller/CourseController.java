@@ -6,6 +6,8 @@ import com.liveclass.course.dto.request.CourseStatusUpdateRequest;
 import com.liveclass.course.dto.response.CourseResponse;
 import com.liveclass.course.dto.response.CourseSummaryResponse;
 import com.liveclass.course.service.CourseService;
+import com.liveclass.enrollment.dto.response.StudentResponse;
+import com.liveclass.enrollment.service.EnrollmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -30,6 +32,7 @@ import java.util.List;
 public class CourseController {
 
     private final CourseService courseService;
+    private final EnrollmentService enrollmentService;
 
     @PostMapping
     public ResponseEntity<CourseResponse> create(
@@ -60,5 +63,13 @@ public class CourseController {
     @GetMapping("/{courseId}")
     public CourseResponse getDetail(@PathVariable Long courseId) {
         return courseService.getDetail(courseId);
+    }
+
+    @GetMapping("/{courseId}/students")
+    public List<StudentResponse> getStudents(
+            @PathVariable Long courseId,
+            @RequestHeader("X-Member-Id") Long memberId
+    ) {
+        return enrollmentService.getStudentsByCourse(courseId, memberId);
     }
 }

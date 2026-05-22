@@ -7,11 +7,15 @@ import com.liveclass.course.dto.request.CourseCreateRequest;
 import com.liveclass.course.dto.request.CourseStatusUpdateRequest;
 import com.liveclass.course.dto.response.CourseResponse;
 import com.liveclass.course.dto.response.CourseSummaryResponse;
+import com.liveclass.common.error.info.EnrollmentErrorInfo;
+import com.liveclass.enrollment.domain.entity.EnrollmentStatus;
+import com.liveclass.enrollment.dto.response.StudentResponse;
 import com.liveclass.support.ControllerTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import java.util.List;
 
@@ -265,6 +269,67 @@ class CourseControllerTest extends ControllerTestSupport {
         mockMvc.perform(get("/api/courses/{courseId}", 999L))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("COURSE_001"));
+    }
+
+    @Test
+    @DisplayName("강의별 수강생 목록 조회 시 200과 학생 배열을 반환한다")
+    void returns200WithStudentList_whenGetStudents() throws Exception {
+        // given
+        List<StudentResponse> students = List.of(
+                new StudentResponse(200L, "홍길동", EnrollmentStatus.CONFIRMED,
+                        LocalDateTime.of(2026, 5, 19, 10, 0), LocalDateTime.of(2026, 5, 18, 9, 0)),
+                new StudentResponse(201L, "이몽룡", EnrollmentStatus.PENDING,
+                        null, LocalDateTime.of(2026, 5, 20, 9, 0))
+        );
+        given(enrollmentService.getStudentsByCourse(1L, 100L)).willReturn(students);
+
+        // when & then
+        mockMvc.perform(get("/api/courses/{courseId}/students", 1L)
+                        .header("X-Member-Id", 100L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].memberId").value(200L))
+                .andExpect(jsonPath("$[0].name").value("홍길동"))
+                .andExpect(jsonPath("$[0].status").value("CONFIRMED"))
+                .andExpect(jsonPath("$[1].memberId").value(201L))
+                .andExpect(jsonPath("$[1].name").value("이몽룡"));
+    }
+
+    @Test
+    @DisplayName("강의별 수강생 목록 조회 시 X-Member-Id 헤더가 없으면 400을 반환한다")
+    void returns400_whenMemberIdHeaderMissingOnGetStudents() throws Exception {
+        // when & then
+        mockMvc.perform(get("/api/courses/{courseId}/students", 1L))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("강의별 수강생 목록 조회 시 강의가 없으면 COURSE_001로 404를 반환한다")
+    void returns404_whenCourseNotFoundOnGetStudents() throws Exception {
+        // given
+        willThrow(new BusinessException(CourseErrorInfo.COURSE_NOT_FOUND))
+                .given(enrollmentService).getStudentsByCourse(999L, 100L);
+
+        // when & then
+        mockMvc.perform(get("/api/courses/{courseId}/students", 999L)
+                        .header("X-Member-Id", 100L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("COURSE_001"));
+    }
+
+    @Test
+    @DisplayName("강의별 수강생 목록 조회 시 크리에이터가 아니면 COURSE_003으로 403을 반환한다")
+    void returns403_whenNotCreatorOnGetStudents() throws Exception {
+        // given
+        willThrow(new BusinessException(CourseErrorInfo.NOT_COURSE_CREATOR))
+                .given(enrollmentService).getStudentsByCourse(1L, 999L);
+
+        // when & then
+        mockMvc.perform(get("/api/courses/{courseId}/students", 1L)
+                        .header("X-Member-Id", 999L))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("COURSE_003"));
     }
 
     private CourseCreateRequest createRequest() {
