@@ -11,10 +11,16 @@ import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.domain.entity.Enrollment;
 import com.liveclass.enrollment.domain.entity.EnrollmentStatus;
+import com.liveclass.common.dto.PageResponse;
 import com.liveclass.enrollment.dto.response.EnrollmentResponse;
+import com.liveclass.enrollment.dto.response.MyEnrollmentResponse;
 import com.liveclass.enrollment.dto.response.StudentResponse;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
 import org.junit.jupiter.api.Nested;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -446,6 +452,35 @@ class EnrollmentServiceTest {
                     new CoursePeriod(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31)));
             ReflectionTestUtils.setField(course, "id", COURSE_ID);
             return course;
+        }
+    }
+
+    @Nested
+    @DisplayName("내 수강 신청 목록 조회 (getMyEnrollments)")
+    class GetMyEnrollments {
+
+        @Test
+        @DisplayName("Repository에서 받은 페이지를 PageResponse로 변환해 반환한다")
+        void returnsPageResponse_whenCalled() {
+            // given
+            Pageable pageable = PageRequest.of(0, 20);
+            List<MyEnrollmentResponse> myEnrollments = List.of(
+                    new MyEnrollmentResponse(10L, 1L, "Spring Boot", 99_000L,
+                            LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31),
+                            EnrollmentStatus.WAITING, null, null)
+            );
+            Page<MyEnrollmentResponse> page = new PageImpl<>(myEnrollments, pageable, 1);
+            given(enrollmentRepository.findMyEnrollments(MEMBER_ID, pageable)).willReturn(page);
+
+            // when
+            PageResponse<MyEnrollmentResponse> result = enrollmentService.getMyEnrollments(MEMBER_ID, pageable);
+
+            // then
+            assertThat(result.content()).isEqualTo(myEnrollments);
+            assertThat(result.page()).isZero();
+            assertThat(result.size()).isEqualTo(20);
+            assertThat(result.totalElements()).isEqualTo(1);
+            assertThat(result.totalPages()).isEqualTo(1);
         }
     }
 

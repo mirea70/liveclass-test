@@ -9,9 +9,12 @@ import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.domain.entity.Enrollment;
 import com.liveclass.enrollment.domain.entity.EnrollmentStatus;
+import com.liveclass.common.dto.PageResponse;
 import com.liveclass.enrollment.dto.response.EnrollmentResponse;
+import com.liveclass.enrollment.dto.response.MyEnrollmentResponse;
 import com.liveclass.enrollment.dto.response.StudentResponse;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
+import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -78,6 +81,10 @@ public class EnrollmentService {
         CourseEnrollCount enrollCount = courseEnrollCountRepository.findById(courseId)
                 .orElseThrow(() -> new BusinessException(CourseErrorInfo.COURSE_NOT_FOUND));
         enrollCount.release();
+    }
+
+    public PageResponse<MyEnrollmentResponse> getMyEnrollments(Long memberId, Pageable pageable) {
+        return PageResponse.from(enrollmentRepository.findMyEnrollments(memberId, pageable));
     }
 
     public List<StudentResponse> getStudentsByCourse(Long courseId, Long requesterId) {

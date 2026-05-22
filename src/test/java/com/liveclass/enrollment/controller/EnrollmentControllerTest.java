@@ -281,6 +281,44 @@ class EnrollmentControllerTest extends ControllerTestSupport {
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_003"));
     }
 
+    @Test
+    @DisplayName("내 수강 신청 목록 조회 시 200과 페이지네이션된 응답을 반환한다")
+    void returns200WithPageResponse_whenGetMyEnrollments() throws Exception {
+        // given
+        com.liveclass.enrollment.dto.response.MyEnrollmentResponse my =
+                new com.liveclass.enrollment.dto.response.MyEnrollmentResponse(
+                        ENROLLMENT_ID, COURSE_ID, "Spring Boot", 99_000L,
+                        java.time.LocalDate.of(2026, 6, 1), java.time.LocalDate.of(2026, 8, 31),
+                        EnrollmentStatus.WAITING, null, null);
+        com.liveclass.common.dto.PageResponse<com.liveclass.enrollment.dto.response.MyEnrollmentResponse> pageResponse =
+                new com.liveclass.common.dto.PageResponse<>(java.util.List.of(my), 0, 20, 1L, 1);
+        given(enrollmentService.getMyEnrollments(org.mockito.ArgumentMatchers.eq(MEMBER_ID),
+                org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
+                .willReturn(pageResponse);
+
+        // when & then
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/enrollments/me")
+                        .header("X-Member-Id", MEMBER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content[0].enrollmentId").value(ENROLLMENT_ID))
+                .andExpect(jsonPath("$.content[0].courseTitle").value("Spring Boot"))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
+    @DisplayName("내 수강 신청 목록 조회 시 X-Member-Id 헤더가 없으면 400을 반환한다")
+    void returns400_whenMemberIdHeaderMissingOnGetMyEnrollments() throws Exception {
+        // when & then
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/enrollments/me"))
+                .andExpect(status().isBadRequest());
+    }
+
     private EnrollmentResponse pendingResponse() {
         return new EnrollmentResponse(ENROLLMENT_ID, COURSE_ID, MEMBER_ID, EnrollmentStatus.PENDING, null, null);
     }

@@ -1,11 +1,16 @@
 package com.liveclass.enrollment.controller;
 
+import com.liveclass.common.dto.PageResponse;
 import com.liveclass.enrollment.dto.request.EnrollmentCreateRequest;
 import com.liveclass.enrollment.dto.response.EnrollmentResponse;
+import com.liveclass.enrollment.dto.response.MyEnrollmentResponse;
 import com.liveclass.enrollment.service.EnrollmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -47,5 +52,13 @@ public class EnrollmentController {
             @RequestHeader("X-Member-Id") Long memberId
     ) {
         return enrollmentService.cancel(enrollmentId, memberId);
+    }
+
+    @GetMapping("/me")
+    public PageResponse<MyEnrollmentResponse> getMyEnrollments(
+            @RequestHeader("X-Member-Id") Long memberId,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        return enrollmentService.getMyEnrollments(memberId, pageable);
     }
 }
