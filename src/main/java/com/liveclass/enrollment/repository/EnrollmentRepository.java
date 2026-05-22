@@ -9,7 +9,7 @@ import java.util.Optional;
 
 public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
 
-    boolean existsByCourseIdAndUserIdAndStatusIn(Long courseId, Long userId, Collection<EnrollmentStatus> statuses);
+    boolean existsByCourseIdAndMemberIdAndStatusIn(Long courseId, Long memberId, Collection<EnrollmentStatus> statuses);
 
     Optional<Enrollment> findFirstByCourseIdAndStatusOrderByCreatedAtAsc(Long courseId, EnrollmentStatus status);
 }

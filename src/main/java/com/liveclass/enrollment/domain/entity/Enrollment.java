@@ -27,12 +27,12 @@ import java.time.LocalDateTime;
 @Table(
         name = "enrollment",
         indexes = {
-                @Index(name = "idx_enrollment_user_status", columnList = "user_id, status"),
+                @Index(name = "idx_enrollment_member_status", columnList = "member_id, status"),
                 @Index(name = "idx_enrollment_course_status_created", columnList = "course_id, status, created_at")
         },
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_enrollment_active",
-                columnNames = {"course_id", "active_user_id"}
+                columnNames = {"course_id", "active_member_id"}
         )
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -45,8 +45,8 @@ public class Enrollment extends BaseEntity {
     @Column(name = "course_id", nullable = false)
     private Long courseId;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @Column(name = "member_id", nullable = false)
+    private Long memberId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -59,29 +59,29 @@ public class Enrollment extends BaseEntity {
     private LocalDateTime cancelledAt;
 
     @Column(
-            name = "active_user_id",
+            name = "active_member_id",
             insertable = false,
             updatable = false,
-            columnDefinition = "BIGINT GENERATED ALWAYS AS (CASE WHEN status IN ('WAITING','PENDING','CONFIRMED') THEN user_id END)"
+            columnDefinition = "BIGINT GENERATED ALWAYS AS (CASE WHEN status IN ('WAITING','PENDING','CONFIRMED') THEN member_id END)"
     )
-    private Long activeUserId;
+    private Long activeMemberId;
 
     @Version
     @Column(nullable = false)
     private Long version;
 
-    private Enrollment(Long courseId, Long userId, EnrollmentStatus status) {
+    private Enrollment(Long courseId, Long memberId, EnrollmentStatus status) {
         this.courseId = courseId;
-        this.userId = userId;
+        this.memberId = memberId;
         this.status = status;
     }
 
-    public static Enrollment createPending(Long courseId, Long userId) {
-        return new Enrollment(courseId, userId, EnrollmentStatus.PENDING);
+    public static Enrollment createPending(Long courseId, Long memberId) {
+        return new Enrollment(courseId, memberId, EnrollmentStatus.PENDING);
     }
 
-    public static Enrollment createWaiting(Long courseId, Long userId) {
-        return new Enrollment(courseId, userId, EnrollmentStatus.WAITING);
+    public static Enrollment createWaiting(Long courseId, Long memberId) {
+        return new Enrollment(courseId, memberId, EnrollmentStatus.WAITING);
     }
 
     public void promote() {
@@ -110,8 +110,8 @@ public class Enrollment extends BaseEntity {
         this.cancelledAt = now;
     }
 
-    public void verifyOwner(Long userId) {
-        if (!this.userId.equals(userId)) {
+    public void verifyOwner(Long memberId) {
+        if (!this.memberId.equals(memberId)) {
             throw new BusinessException(EnrollmentErrorInfo.NOT_ENROLLMENT_OWNER);
         }
     }

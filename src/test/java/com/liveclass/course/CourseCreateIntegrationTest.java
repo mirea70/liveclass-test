@@ -45,7 +45,7 @@ class CourseCreateIntegrationTest extends IntegrationTestSupport {
 
         // when
         MvcResult result = mockMvc.perform(post("/api/courses")
-                        .header("X-User-Id", 100L)
+                        .header("X-Member-Id", 100L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -89,7 +89,7 @@ class CourseCreateIntegrationTest extends IntegrationTestSupport {
 
         // when & then
         mockMvc.perform(post("/api/courses")
-                        .header("X-User-Id", 100L)
+                        .header("X-Member-Id", 100L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -115,7 +115,7 @@ class CourseCreateIntegrationTest extends IntegrationTestSupport {
 
         // when & then
         mockMvc.perform(post("/api/courses")
-                        .header("X-User-Id", 100L)
+                        .header("X-Member-Id", 100L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest());

@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class EnrollmentConcurrencyTest {
 
     private static final Long CREATOR_ID = 100L;
-    private static final Long USER_ID = 200L;
+    private static final Long MEMBER_ID = 200L;
     private static final int THREAD_POOL_SIZE = 32;
 
     @Autowired
@@ -62,7 +62,7 @@ class EnrollmentConcurrencyTest {
         int threadCount = 50;
 
         // when
-        runConcurrent(threadCount, () -> enrollmentService.enroll(courseId, USER_ID));
+        runConcurrent(threadCount, () -> enrollmentService.enroll(courseId, MEMBER_ID));
 
         // then
         List<Enrollment> allEnrollments = enrollmentRepository.findAll();
@@ -84,7 +84,7 @@ class EnrollmentConcurrencyTest {
         Long courseId = saveOpenCourseWithCapacity(capacity);
 
         // when
-        runConcurrentWithDifferentUsers(threadCount, userId -> enrollmentService.enroll(courseId, userId));
+        runConcurrentWithDifferentUsers(threadCount, memberId -> enrollmentService.enroll(courseId, memberId));
 
         // then
         long pendingCount = countByStatus(EnrollmentStatus.PENDING);
@@ -105,7 +105,7 @@ class EnrollmentConcurrencyTest {
         Long courseId = saveOpenCourseWithCapacity(capacity);
 
         // when
-        runConcurrentWithDifferentUsers(threadCount, userId -> enrollmentService.enroll(courseId, userId));
+        runConcurrentWithDifferentUsers(threadCount, memberId -> enrollmentService.enroll(courseId, memberId));
 
         // then
         long pendingCount = countByStatus(EnrollmentStatus.PENDING);
@@ -125,7 +125,7 @@ class EnrollmentConcurrencyTest {
         int waitingCount = 50;
         Long courseId = saveOpenCourseWithCapacity(capacity);
         Long pendingEnrollmentId = enrollmentRepository.save(
-                com.liveclass.enrollment.domain.entity.Enrollment.createPending(courseId, USER_ID)).getId();
+                com.liveclass.enrollment.domain.entity.Enrollment.createPending(courseId, MEMBER_ID)).getId();
         com.liveclass.course.domain.entity.CourseEnrollCount counter =
                 courseEnrollCountRepository.findById(courseId).orElseThrow();
         counter.tryReserve(capacity);
@@ -136,7 +136,7 @@ class EnrollmentConcurrencyTest {
         }
 
         // when
-        enrollmentService.cancel(pendingEnrollmentId, USER_ID);
+        enrollmentService.cancel(pendingEnrollmentId, MEMBER_ID);
 
         // then
         long pendingTotal = countByStatus(EnrollmentStatus.PENDING);
@@ -152,7 +152,7 @@ class EnrollmentConcurrencyTest {
         // given
         Long courseId = saveOpenCourseWithCapacity(30);
         Long pendingEnrollmentId = enrollmentRepository.save(
-                com.liveclass.enrollment.domain.entity.Enrollment.createPending(courseId, USER_ID)).getId();
+                com.liveclass.enrollment.domain.entity.Enrollment.createPending(courseId, MEMBER_ID)).getId();
         com.liveclass.course.domain.entity.CourseEnrollCount counter =
                 courseEnrollCountRepository.findById(courseId).orElseThrow();
         counter.tryReserve(30);
@@ -160,7 +160,7 @@ class EnrollmentConcurrencyTest {
         int threadCount = 50;
 
         // when
-        runConcurrent(threadCount, () -> enrollmentService.cancel(pendingEnrollmentId, USER_ID));
+        runConcurrent(threadCount, () -> enrollmentService.cancel(pendingEnrollmentId, MEMBER_ID));
 
         // then
         com.liveclass.enrollment.domain.entity.Enrollment reloaded =
@@ -197,10 +197,10 @@ class EnrollmentConcurrencyTest {
         ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
         CountDownLatch latch = new CountDownLatch(threadCount);
         for (int i = 0; i < threadCount; i++) {
-            final long userId = 1000L + i;
+            final long memberId = 1000L + i;
             executor.submit(() -> {
                 try {
-                    action.accept(userId);
+                    action.accept(memberId);
                 } catch (Exception ignored) {
                     // 동시성 경합 예외 무시 - 최종 상태로 검증
                 } finally {

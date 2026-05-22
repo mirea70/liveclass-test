@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class CourseStatusUpdateIntegrationTest extends IntegrationTestSupport {
 
     private static final Long CREATOR_ID = 100L;
-    private static final Long OTHER_USER_ID = 999L;
+    private static final Long OTHER_MEMBER_ID = 999L;
 
     @Autowired
     private CourseRepository courseRepository;
@@ -42,7 +42,7 @@ class CourseStatusUpdateIntegrationTest extends IntegrationTestSupport {
 
         // when & then
         mockMvc.perform(patch("/api/courses/{courseId}/status", course.getId())
-                        .header("X-User-Id", CREATOR_ID)
+                        .header("X-Member-Id", CREATOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNoContent());
@@ -62,7 +62,7 @@ class CourseStatusUpdateIntegrationTest extends IntegrationTestSupport {
 
         // when & then
         mockMvc.perform(patch("/api/courses/{courseId}/status", course.getId())
-                        .header("X-User-Id", CREATOR_ID)
+                        .header("X-Member-Id", CREATOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNoContent());
@@ -79,7 +79,7 @@ class CourseStatusUpdateIntegrationTest extends IntegrationTestSupport {
 
         // when & then
         mockMvc.perform(patch("/api/courses/{courseId}/status", 9999L)
-                        .header("X-User-Id", CREATOR_ID)
+                        .header("X-Member-Id", CREATOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
@@ -95,7 +95,7 @@ class CourseStatusUpdateIntegrationTest extends IntegrationTestSupport {
 
         // when & then
         mockMvc.perform(patch("/api/courses/{courseId}/status", course.getId())
-                        .header("X-User-Id", OTHER_USER_ID)
+                        .header("X-Member-Id", OTHER_MEMBER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden())
@@ -114,7 +114,7 @@ class CourseStatusUpdateIntegrationTest extends IntegrationTestSupport {
 
         // when & then
         mockMvc.perform(patch("/api/courses/{courseId}/status", course.getId())
-                        .header("X-User-Id", CREATOR_ID)
+                        .header("X-Member-Id", CREATOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict())

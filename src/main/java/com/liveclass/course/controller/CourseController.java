@@ -33,10 +33,10 @@ public class CourseController {
 
     @PostMapping
     public ResponseEntity<CourseResponse> create(
-            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader("X-Member-Id") Long memberId,
             @RequestBody @Valid CourseCreateRequest request
     ) {
-        CourseResponse response = courseService.create(userId, request);
+        CourseResponse response = courseService.create(memberId, request);
         return ResponseEntity
                 .created(URI.create("/api/courses/" + response.id()))
                 .body(response);
@@ -46,10 +46,10 @@ public class CourseController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void updateStatus(
             @PathVariable Long courseId,
-            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader("X-Member-Id") Long memberId,
             @RequestBody @Valid CourseStatusUpdateRequest request
     ) {
-        courseService.updateStatus(courseId, userId, request.status());
+        courseService.updateStatus(courseId, memberId, request.status());
     }
 
     @GetMapping

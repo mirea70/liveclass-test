@@ -28,8 +28,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
 
     private static final Long CREATOR_ID = 100L;
-    private static final Long USER_ID = 200L;
-    private static final Long OTHER_USER_ID = 999L;
+    private static final Long MEMBER_ID = 200L;
+    private static final Long OTHER_MEMBER_ID = 999L;
     private static final Duration CANCELLATION_WINDOW = Duration.ofDays(7);
 
     @Autowired
@@ -46,11 +46,11 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
     void cancelsWaiting_andCountUnchanged() throws Exception {
         // given
         Long courseId = saveOpenCourseWithCount(30, 5);
-        Enrollment waiting = enrollmentRepository.save(Enrollment.createWaiting(courseId, USER_ID));
+        Enrollment waiting = enrollmentRepository.save(Enrollment.createWaiting(courseId, MEMBER_ID));
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", waiting.getId())
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
 
@@ -64,11 +64,11 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
     void decreasesCount_whenPendingCancelledAndNoWaiting() throws Exception {
         // given
         Long courseId = saveOpenCourseWithCount(30, 1);
-        Enrollment pending = enrollmentRepository.save(Enrollment.createPending(courseId, USER_ID));
+        Enrollment pending = enrollmentRepository.save(Enrollment.createPending(courseId, MEMBER_ID));
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", pending.getId())
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isOk());
 
         assertThat(courseEnrollCountRepository.findById(courseId).orElseThrow().getCount()).isZero();
@@ -79,7 +79,7 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
     void promotesOldestWaiting_whenPendingCancelled() throws Exception {
         // given
         Long courseId = saveOpenCourseWithCount(1, 1);
-        Enrollment pending = enrollmentRepository.save(Enrollment.createPending(courseId, USER_ID));
+        Enrollment pending = enrollmentRepository.save(Enrollment.createPending(courseId, MEMBER_ID));
         Enrollment olderWaiting = enrollmentRepository.save(Enrollment.createWaiting(courseId, 300L));
         ReflectionTestUtils.setField(olderWaiting, "createdAt", LocalDateTime.of(2026, 1, 1, 0, 0));
         enrollmentRepository.save(olderWaiting);
@@ -89,7 +89,7 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
 
         // when
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", pending.getId())
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isOk());
 
         // then
@@ -105,13 +105,13 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
     void cancelsConfirmed_whenWithinWindow() throws Exception {
         // given
         Long courseId = saveOpenCourseWithCount(30, 1);
-        Enrollment enrollment = Enrollment.createPending(courseId, USER_ID);
+        Enrollment enrollment = Enrollment.createPending(courseId, MEMBER_ID);
         enrollment.confirm(LocalDateTime.now().minusDays(3));
         Enrollment saved = enrollmentRepository.save(enrollment);
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", saved.getId())
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
     }
@@ -121,13 +121,13 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
     void returns400_whenCancellationWindowExpired() throws Exception {
         // given
         Long courseId = saveOpenCourseWithCount(30, 1);
-        Enrollment enrollment = Enrollment.createPending(courseId, USER_ID);
+        Enrollment enrollment = Enrollment.createPending(courseId, MEMBER_ID);
         enrollment.confirm(LocalDateTime.now().minusDays(8));
         Enrollment saved = enrollmentRepository.save(enrollment);
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", saved.getId())
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_006"));
     }
@@ -137,11 +137,11 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
     void returns403_whenNotOwner() throws Exception {
         // given
         Long courseId = saveOpenCourseWithCount(30, 1);
-        Enrollment enrollment = enrollmentRepository.save(Enrollment.createPending(courseId, USER_ID));
+        Enrollment enrollment = enrollmentRepository.save(Enrollment.createPending(courseId, MEMBER_ID));
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", enrollment.getId())
-                        .header("X-User-Id", OTHER_USER_ID))
+                        .header("X-Member-Id", OTHER_MEMBER_ID))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_004"));
     }
@@ -151,13 +151,13 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
     void returns409_whenAlreadyCancelled() throws Exception {
         // given
         Long courseId = saveOpenCourseWithCount(30, 0);
-        Enrollment enrollment = Enrollment.createPending(courseId, USER_ID);
+        Enrollment enrollment = Enrollment.createPending(courseId, MEMBER_ID);
         enrollment.cancel(LocalDateTime.now(), CANCELLATION_WINDOW);
         Enrollment saved = enrollmentRepository.save(enrollment);
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", saved.getId())
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_007"));
     }
@@ -167,7 +167,7 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
     void returns404_whenEnrollmentNotFound() throws Exception {
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", 9999L)
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_003"));
     }

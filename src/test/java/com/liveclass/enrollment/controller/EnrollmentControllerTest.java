@@ -21,25 +21,25 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class EnrollmentControllerTest extends ControllerTestSupport {
 
     private static final Long COURSE_ID = 1L;
-    private static final Long USER_ID = 200L;
+    private static final Long MEMBER_ID = 200L;
     private static final Long ENROLLMENT_ID = 10L;
 
     @Test
     @DisplayName("유효한 신청 요청이면 201 Created와 Location 헤더, PENDING 응답을 반환한다")
     void returns201WithLocation_whenEnrollSucceeds() throws Exception {
         // given
-        given(enrollmentService.enroll(COURSE_ID, USER_ID)).willReturn(pendingResponse());
+        given(enrollmentService.enroll(COURSE_ID, MEMBER_ID)).willReturn(pendingResponse());
 
         // when & then
         mockMvc.perform(post("/api/enrollments")
-                        .header("X-User-Id", USER_ID)
+                        .header("X-Member-Id", MEMBER_ID)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(new EnrollmentCreateRequest(COURSE_ID))))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/api/enrollments/" + ENROLLMENT_ID))
                 .andExpect(jsonPath("$.id").value(ENROLLMENT_ID))
                 .andExpect(jsonPath("$.courseId").value(COURSE_ID))
-                .andExpect(jsonPath("$.userId").value(USER_ID))
+                .andExpect(jsonPath("$.memberId").value(MEMBER_ID))
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.confirmedAt").isEmpty())
                 .andExpect(jsonPath("$.cancelledAt").isEmpty());
@@ -50,12 +50,12 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     void returnsWaitingStatus_whenQueued() throws Exception {
         // given
         EnrollmentResponse waiting = new EnrollmentResponse(
-                ENROLLMENT_ID, COURSE_ID, USER_ID, EnrollmentStatus.WAITING, null, null);
-        given(enrollmentService.enroll(COURSE_ID, USER_ID)).willReturn(waiting);
+                ENROLLMENT_ID, COURSE_ID, MEMBER_ID, EnrollmentStatus.WAITING, null, null);
+        given(enrollmentService.enroll(COURSE_ID, MEMBER_ID)).willReturn(waiting);
 
         // when & then
         mockMvc.perform(post("/api/enrollments")
-                        .header("X-User-Id", USER_ID)
+                        .header("X-Member-Id", MEMBER_ID)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(new EnrollmentCreateRequest(COURSE_ID))))
                 .andExpect(status().isCreated())
@@ -63,8 +63,8 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     }
 
     @Test
-    @DisplayName("X-User-Id 헤더가 없으면 400을 반환한다")
-    void returns400_whenUserIdHeaderMissing() throws Exception {
+    @DisplayName("X-Member-Id 헤더가 없으면 400을 반환한다")
+    void returns400_whenMemberIdHeaderMissing() throws Exception {
         // when & then
         mockMvc.perform(post("/api/enrollments")
                         .contentType("application/json")
@@ -77,7 +77,7 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     void returns400_whenCourseIdMissing() throws Exception {
         // when & then
         mockMvc.perform(post("/api/enrollments")
-                        .header("X-User-Id", USER_ID)
+                        .header("X-Member-Id", MEMBER_ID)
                         .contentType("application/json")
                         .content("{}"))
                 .andExpect(status().isBadRequest());
@@ -88,11 +88,11 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     void returns404_whenCourseNotFound() throws Exception {
         // given
         willThrow(new BusinessException(CourseErrorInfo.COURSE_NOT_FOUND))
-                .given(enrollmentService).enroll(COURSE_ID, USER_ID);
+                .given(enrollmentService).enroll(COURSE_ID, MEMBER_ID);
 
         // when & then
         mockMvc.perform(post("/api/enrollments")
-                        .header("X-User-Id", USER_ID)
+                        .header("X-Member-Id", MEMBER_ID)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(new EnrollmentCreateRequest(COURSE_ID))))
                 .andExpect(status().isNotFound())
@@ -104,11 +104,11 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     void returns409_whenCourseNotOpen() throws Exception {
         // given
         willThrow(new BusinessException(EnrollmentErrorInfo.COURSE_NOT_OPEN))
-                .given(enrollmentService).enroll(COURSE_ID, USER_ID);
+                .given(enrollmentService).enroll(COURSE_ID, MEMBER_ID);
 
         // when & then
         mockMvc.perform(post("/api/enrollments")
-                        .header("X-User-Id", USER_ID)
+                        .header("X-Member-Id", MEMBER_ID)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(new EnrollmentCreateRequest(COURSE_ID))))
                 .andExpect(status().isConflict())
@@ -120,11 +120,11 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     void returns409_whenDuplicateEnrollment() throws Exception {
         // given
         willThrow(new BusinessException(EnrollmentErrorInfo.DUPLICATE_ENROLLMENT))
-                .given(enrollmentService).enroll(COURSE_ID, USER_ID);
+                .given(enrollmentService).enroll(COURSE_ID, MEMBER_ID);
 
         // when & then
         mockMvc.perform(post("/api/enrollments")
-                        .header("X-User-Id", USER_ID)
+                        .header("X-Member-Id", MEMBER_ID)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(new EnrollmentCreateRequest(COURSE_ID))))
                 .andExpect(status().isConflict())
@@ -137,12 +137,12 @@ class EnrollmentControllerTest extends ControllerTestSupport {
         // given
         java.time.LocalDateTime confirmedAt = java.time.LocalDateTime.of(2026, 5, 22, 10, 0);
         EnrollmentResponse confirmed = new EnrollmentResponse(
-                ENROLLMENT_ID, COURSE_ID, USER_ID, EnrollmentStatus.CONFIRMED, confirmedAt, null);
-        given(enrollmentService.confirm(ENROLLMENT_ID, USER_ID)).willReturn(confirmed);
+                ENROLLMENT_ID, COURSE_ID, MEMBER_ID, EnrollmentStatus.CONFIRMED, confirmedAt, null);
+        given(enrollmentService.confirm(ENROLLMENT_ID, MEMBER_ID)).willReturn(confirmed);
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", ENROLLMENT_ID)
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(ENROLLMENT_ID))
                 .andExpect(jsonPath("$.status").value("CONFIRMED"))
@@ -150,8 +150,8 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     }
 
     @Test
-    @DisplayName("X-User-Id 헤더가 없으면 confirm 요청 시 400을 반환한다")
-    void returns400_whenUserIdHeaderMissingOnConfirm() throws Exception {
+    @DisplayName("X-Member-Id 헤더가 없으면 confirm 요청 시 400을 반환한다")
+    void returns400_whenMemberIdHeaderMissingOnConfirm() throws Exception {
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", ENROLLMENT_ID))
                 .andExpect(status().isBadRequest());
@@ -162,11 +162,11 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     void returns403_whenNotEnrollmentOwner() throws Exception {
         // given
         willThrow(new BusinessException(EnrollmentErrorInfo.NOT_ENROLLMENT_OWNER))
-                .given(enrollmentService).confirm(ENROLLMENT_ID, USER_ID);
+                .given(enrollmentService).confirm(ENROLLMENT_ID, MEMBER_ID);
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", ENROLLMENT_ID)
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_004"));
     }
@@ -176,11 +176,11 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     void returns409_whenNotConfirmableStatus() throws Exception {
         // given
         willThrow(new BusinessException(EnrollmentErrorInfo.NOT_CONFIRMABLE_STATUS))
-                .given(enrollmentService).confirm(ENROLLMENT_ID, USER_ID);
+                .given(enrollmentService).confirm(ENROLLMENT_ID, MEMBER_ID);
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", ENROLLMENT_ID)
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_005"));
     }
@@ -190,11 +190,11 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     void returns404_whenEnrollmentNotFound() throws Exception {
         // given
         willThrow(new BusinessException(EnrollmentErrorInfo.ENROLLMENT_NOT_FOUND))
-                .given(enrollmentService).confirm(ENROLLMENT_ID, USER_ID);
+                .given(enrollmentService).confirm(ENROLLMENT_ID, MEMBER_ID);
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", ENROLLMENT_ID)
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_003"));
     }
@@ -205,12 +205,12 @@ class EnrollmentControllerTest extends ControllerTestSupport {
         // given
         java.time.LocalDateTime cancelledAt = java.time.LocalDateTime.of(2026, 5, 22, 12, 0);
         EnrollmentResponse cancelled = new EnrollmentResponse(
-                ENROLLMENT_ID, COURSE_ID, USER_ID, EnrollmentStatus.CANCELLED, null, cancelledAt);
-        given(enrollmentService.cancel(ENROLLMENT_ID, USER_ID)).willReturn(cancelled);
+                ENROLLMENT_ID, COURSE_ID, MEMBER_ID, EnrollmentStatus.CANCELLED, null, cancelledAt);
+        given(enrollmentService.cancel(ENROLLMENT_ID, MEMBER_ID)).willReturn(cancelled);
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", ENROLLMENT_ID)
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(ENROLLMENT_ID))
                 .andExpect(jsonPath("$.status").value("CANCELLED"))
@@ -218,8 +218,8 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     }
 
     @Test
-    @DisplayName("X-User-Id 헤더가 없으면 cancel 요청 시 400을 반환한다")
-    void returns400_whenUserIdHeaderMissingOnCancel() throws Exception {
+    @DisplayName("X-Member-Id 헤더가 없으면 cancel 요청 시 400을 반환한다")
+    void returns400_whenMemberIdHeaderMissingOnCancel() throws Exception {
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", ENROLLMENT_ID))
                 .andExpect(status().isBadRequest());
@@ -230,11 +230,11 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     void returns403_whenNotOwnerOnCancel() throws Exception {
         // given
         willThrow(new BusinessException(EnrollmentErrorInfo.NOT_ENROLLMENT_OWNER))
-                .given(enrollmentService).cancel(ENROLLMENT_ID, USER_ID);
+                .given(enrollmentService).cancel(ENROLLMENT_ID, MEMBER_ID);
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", ENROLLMENT_ID)
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_004"));
     }
@@ -244,11 +244,11 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     void returns400_whenCancellationWindowExpired() throws Exception {
         // given
         willThrow(new BusinessException(EnrollmentErrorInfo.CANCELLATION_WINDOW_EXPIRED))
-                .given(enrollmentService).cancel(ENROLLMENT_ID, USER_ID);
+                .given(enrollmentService).cancel(ENROLLMENT_ID, MEMBER_ID);
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", ENROLLMENT_ID)
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_006"));
     }
@@ -258,11 +258,11 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     void returns409_whenAlreadyCancelled() throws Exception {
         // given
         willThrow(new BusinessException(EnrollmentErrorInfo.ALREADY_CANCELLED))
-                .given(enrollmentService).cancel(ENROLLMENT_ID, USER_ID);
+                .given(enrollmentService).cancel(ENROLLMENT_ID, MEMBER_ID);
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", ENROLLMENT_ID)
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_007"));
     }
@@ -272,16 +272,16 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     void returns404_whenEnrollmentNotFoundOnCancel() throws Exception {
         // given
         willThrow(new BusinessException(EnrollmentErrorInfo.ENROLLMENT_NOT_FOUND))
-                .given(enrollmentService).cancel(ENROLLMENT_ID, USER_ID);
+                .given(enrollmentService).cancel(ENROLLMENT_ID, MEMBER_ID);
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", ENROLLMENT_ID)
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_003"));
     }
 
     private EnrollmentResponse pendingResponse() {
-        return new EnrollmentResponse(ENROLLMENT_ID, COURSE_ID, USER_ID, EnrollmentStatus.PENDING, null, null);
+        return new EnrollmentResponse(ENROLLMENT_ID, COURSE_ID, MEMBER_ID, EnrollmentStatus.PENDING, null, null);
     }
 }

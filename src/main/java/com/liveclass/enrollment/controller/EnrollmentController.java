@@ -24,10 +24,10 @@ public class EnrollmentController {
 
     @PostMapping
     public ResponseEntity<EnrollmentResponse> enroll(
-            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader("X-Member-Id") Long memberId,
             @RequestBody @Valid EnrollmentCreateRequest request
     ) {
-        EnrollmentResponse response = enrollmentService.enroll(request.courseId(), userId);
+        EnrollmentResponse response = enrollmentService.enroll(request.courseId(), memberId);
         return ResponseEntity
                 .created(URI.create("/api/enrollments/" + response.id()))
                 .body(response);
@@ -36,16 +36,16 @@ public class EnrollmentController {
     @PostMapping("/{enrollmentId}/confirmation")
     public EnrollmentResponse confirm(
             @PathVariable Long enrollmentId,
-            @RequestHeader("X-User-Id") Long userId
+            @RequestHeader("X-Member-Id") Long memberId
     ) {
-        return enrollmentService.confirm(enrollmentId, userId);
+        return enrollmentService.confirm(enrollmentId, memberId);
     }
 
     @PostMapping("/{enrollmentId}/cancellation")
     public EnrollmentResponse cancel(
             @PathVariable Long enrollmentId,
-            @RequestHeader("X-User-Id") Long userId
+            @RequestHeader("X-Member-Id") Long memberId
     ) {
-        return enrollmentService.cancel(enrollmentId, userId);
+        return enrollmentService.cancel(enrollmentId, memberId);
     }
 }

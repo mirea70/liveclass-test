@@ -44,7 +44,7 @@ class CourseControllerTest extends ControllerTestSupport {
 
         // when & then
         mockMvc.perform(post("/api/courses")
-                        .header("X-User-Id", 100L)
+                        .header("X-Member-Id", 100L)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -59,7 +59,7 @@ class CourseControllerTest extends ControllerTestSupport {
     }
 
     @Test
-    @DisplayName("X-User-Id 헤더가 없으면 400을 반환한다")
+    @DisplayName("X-Member-Id 헤더가 없으면 400을 반환한다")
     void returns400_whenUserIdHeaderMissing() throws Exception {
         // given
         CourseCreateRequest request = createRequest();
@@ -82,7 +82,7 @@ class CourseControllerTest extends ControllerTestSupport {
 
         // when & then
         mockMvc.perform(post("/api/courses")
-                        .header("X-User-Id", 100L)
+                        .header("X-Member-Id", 100L)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -99,7 +99,7 @@ class CourseControllerTest extends ControllerTestSupport {
 
         // when & then
         mockMvc.perform(post("/api/courses")
-                        .header("X-User-Id", 100L)
+                        .header("X-Member-Id", 100L)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -116,7 +116,7 @@ class CourseControllerTest extends ControllerTestSupport {
 
         // when & then
         mockMvc.perform(post("/api/courses")
-                        .header("X-User-Id", 100L)
+                        .header("X-Member-Id", 100L)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -130,7 +130,7 @@ class CourseControllerTest extends ControllerTestSupport {
 
         // when & then
         mockMvc.perform(patch("/api/courses/{courseId}/status", 1L)
-                        .header("X-User-Id", 100L)
+                        .header("X-Member-Id", 100L)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNoContent());
@@ -144,14 +144,14 @@ class CourseControllerTest extends ControllerTestSupport {
 
         // when & then
         mockMvc.perform(patch("/api/courses/{courseId}/status", 1L)
-                        .header("X-User-Id", 100L)
+                        .header("X-Member-Id", 100L)
                         .contentType("application/json")
                         .content(emptyBody))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    @DisplayName("강의 상태 변경 요청에 X-User-Id 헤더가 없으면 400을 반환한다")
+    @DisplayName("강의 상태 변경 요청에 X-Member-Id 헤더가 없으면 400을 반환한다")
     void returns400_whenUserIdHeaderMissingForStatusUpdate() throws Exception {
         // given
         CourseStatusUpdateRequest request = new CourseStatusUpdateRequest(CourseStatus.OPEN);
@@ -173,7 +173,7 @@ class CourseControllerTest extends ControllerTestSupport {
 
         // when & then
         mockMvc.perform(patch("/api/courses/{courseId}/status", 999L)
-                        .header("X-User-Id", 100L)
+                        .header("X-Member-Id", 100L)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
@@ -190,7 +190,7 @@ class CourseControllerTest extends ControllerTestSupport {
 
         // when & then
         mockMvc.perform(patch("/api/courses/{courseId}/status", 1L)
-                        .header("X-User-Id", 999L)
+                        .header("X-Member-Id", 999L)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden())

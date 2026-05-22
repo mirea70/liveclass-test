@@ -25,8 +25,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class EnrollmentConfirmIntegrationTest extends IntegrationTestSupport {
 
     private static final Long CREATOR_ID = 100L;
-    private static final Long USER_ID = 200L;
-    private static final Long OTHER_USER_ID = 999L;
+    private static final Long MEMBER_ID = 200L;
+    private static final Long OTHER_MEMBER_ID = 999L;
 
     @Autowired
     private CourseRepository courseRepository;
@@ -42,11 +42,11 @@ class EnrollmentConfirmIntegrationTest extends IntegrationTestSupport {
     void confirmsPendingEnrollment_whenOwnerRequests() throws Exception {
         // given
         Long courseId = saveOpenCourse(30);
-        Enrollment enrollment = enrollmentRepository.save(Enrollment.createPending(courseId, USER_ID));
+        Enrollment enrollment = enrollmentRepository.save(Enrollment.createPending(courseId, MEMBER_ID));
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", enrollment.getId())
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(enrollment.getId()))
                 .andExpect(jsonPath("$.status").value("CONFIRMED"))
@@ -62,11 +62,11 @@ class EnrollmentConfirmIntegrationTest extends IntegrationTestSupport {
     void returns403_whenNotOwner() throws Exception {
         // given
         Long courseId = saveOpenCourse(30);
-        Enrollment enrollment = enrollmentRepository.save(Enrollment.createPending(courseId, USER_ID));
+        Enrollment enrollment = enrollmentRepository.save(Enrollment.createPending(courseId, MEMBER_ID));
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", enrollment.getId())
-                        .header("X-User-Id", OTHER_USER_ID))
+                        .header("X-Member-Id", OTHER_MEMBER_ID))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_004"));
 
@@ -79,11 +79,11 @@ class EnrollmentConfirmIntegrationTest extends IntegrationTestSupport {
     void returns409_whenWaitingStatus() throws Exception {
         // given
         Long courseId = saveOpenCourse(30);
-        Enrollment enrollment = enrollmentRepository.save(Enrollment.createWaiting(courseId, USER_ID));
+        Enrollment enrollment = enrollmentRepository.save(Enrollment.createWaiting(courseId, MEMBER_ID));
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", enrollment.getId())
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_005"));
     }
@@ -93,7 +93,7 @@ class EnrollmentConfirmIntegrationTest extends IntegrationTestSupport {
     void returns404_whenEnrollmentNotFound() throws Exception {
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", 9999L)
-                        .header("X-User-Id", USER_ID))
+                        .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_003"));
     }

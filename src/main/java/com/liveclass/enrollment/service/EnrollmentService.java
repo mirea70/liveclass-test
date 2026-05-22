@@ -38,27 +38,27 @@ public class EnrollmentService {
 
     @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 10)
     @Transactional
-    public EnrollmentResponse enroll(Long courseId, Long userId) {
+    public EnrollmentResponse enroll(Long courseId, Long memberId) {
         Course course = getOpenCourse(courseId);
-        validateDuplicated(courseId, userId);
-        Enrollment enrollment = reserveOrEnqueue(course, userId);
+        validateDuplicated(courseId, memberId);
+        Enrollment enrollment = reserveOrEnqueue(course, memberId);
         return EnrollmentResponse.from(saveOrThrowDuplicate(enrollment));
     }
 
     @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 10)
     @Transactional
-    public EnrollmentResponse confirm(Long enrollmentId, Long userId) {
+    public EnrollmentResponse confirm(Long enrollmentId, Long memberId) {
         Enrollment enrollment = getEnrollment(enrollmentId);
-        enrollment.verifyOwner(userId);
+        enrollment.verifyOwner(memberId);
         enrollment.confirm(LocalDateTime.now());
         return EnrollmentResponse.from(enrollment);
     }
 
     @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 10)
     @Transactional
-    public EnrollmentResponse cancel(Long enrollmentId, Long userId) {
+    public EnrollmentResponse cancel(Long enrollmentId, Long memberId) {
         Enrollment enrollment = getEnrollment(enrollmentId);
-        enrollment.verifyOwner(userId);
+        enrollment.verifyOwner(memberId);
         EnrollmentStatus before = enrollment.getStatus();
         enrollment.cancel(LocalDateTime.now(), CANCELLATION_WINDOW);
         if (before != EnrollmentStatus.WAITING) {
@@ -92,18 +92,18 @@ public class EnrollmentService {
         return course;
     }
 
-    private void validateDuplicated(Long courseId, Long userId) {
-        if (enrollmentRepository.existsByCourseIdAndUserIdAndStatusIn(courseId, userId, ACTIVE_STATUSES)) {
+    private void validateDuplicated(Long courseId, Long memberId) {
+        if (enrollmentRepository.existsByCourseIdAndMemberIdAndStatusIn(courseId, memberId, ACTIVE_STATUSES)) {
             throw new BusinessException(EnrollmentErrorInfo.DUPLICATE_ENROLLMENT);
         }
     }
 
-    private Enrollment reserveOrEnqueue(Course course, Long userId) {
+    private Enrollment reserveOrEnqueue(Course course, Long memberId) {
         CourseEnrollCount enrollCount = courseEnrollCountRepository.findById(course.getId())
                 .orElseThrow(() -> new BusinessException(CourseErrorInfo.COURSE_NOT_FOUND));
         return enrollCount.tryReserve(course.getCapacity())
-                ? Enrollment.createPending(course.getId(), userId)
-                : Enrollment.createWaiting(course.getId(), userId);
+                ? Enrollment.createPending(course.getId(), memberId)
+                : Enrollment.createWaiting(course.getId(), memberId);
     }
 
     private Enrollment saveOrThrowDuplicate(Enrollment enrollment) {

@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("수강 신청 통합 테스트")
 class EnrollmentCreateIntegrationTest extends IntegrationTestSupport {
 
-    private static final Long USER_ID = 200L;
+    private static final Long MEMBER_ID = 200L;
     private static final Long CREATOR_ID = 100L;
 
     @Autowired
@@ -49,14 +49,14 @@ class EnrollmentCreateIntegrationTest extends IntegrationTestSupport {
 
         // when
         MvcResult result = mockMvc.perform(post("/api/enrollments")
-                        .header("X-User-Id", USER_ID)
+                        .header("X-Member-Id", MEMBER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new EnrollmentCreateRequest(courseId))))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", org.hamcrest.Matchers.startsWith("/api/enrollments/")))
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.courseId").value(courseId))
-                .andExpect(jsonPath("$.userId").value(USER_ID))
+                .andExpect(jsonPath("$.memberId").value(MEMBER_ID))
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.confirmedAt").isEmpty())
                 .andExpect(jsonPath("$.cancelledAt").isEmpty())
@@ -67,7 +67,7 @@ class EnrollmentCreateIntegrationTest extends IntegrationTestSupport {
                 result.getResponse().getContentAsString(), EnrollmentResponse.class);
         Enrollment saved = enrollmentRepository.findById(response.id()).orElseThrow();
         assertThat(saved.getCourseId()).isEqualTo(courseId);
-        assertThat(saved.getUserId()).isEqualTo(USER_ID);
+        assertThat(saved.getMemberId()).isEqualTo(MEMBER_ID);
         assertThat(saved.getStatus()).isEqualTo(EnrollmentStatus.PENDING);
 
         CourseEnrollCount count = courseEnrollCountRepository.findById(courseId).orElseThrow();
@@ -82,7 +82,7 @@ class EnrollmentCreateIntegrationTest extends IntegrationTestSupport {
 
         // when
         MvcResult result = mockMvc.perform(post("/api/enrollments")
-                        .header("X-User-Id", USER_ID)
+                        .header("X-Member-Id", MEMBER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new EnrollmentCreateRequest(courseId))))
                 .andExpect(status().isCreated())
@@ -104,7 +104,7 @@ class EnrollmentCreateIntegrationTest extends IntegrationTestSupport {
     void returns404_whenCourseNotFound() throws Exception {
         // when & then
         mockMvc.perform(post("/api/enrollments")
-                        .header("X-User-Id", USER_ID)
+                        .header("X-Member-Id", MEMBER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new EnrollmentCreateRequest(9999L))))
                 .andExpect(status().isNotFound())
@@ -120,7 +120,7 @@ class EnrollmentCreateIntegrationTest extends IntegrationTestSupport {
 
         // when & then
         mockMvc.perform(post("/api/enrollments")
-                        .header("X-User-Id", USER_ID)
+                        .header("X-Member-Id", MEMBER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new EnrollmentCreateRequest(courseId))))
                 .andExpect(status().isConflict())
@@ -135,14 +135,14 @@ class EnrollmentCreateIntegrationTest extends IntegrationTestSupport {
         // given
         Long courseId = saveOpenCourseWithCount(30, 0);
         mockMvc.perform(post("/api/enrollments")
-                        .header("X-User-Id", USER_ID)
+                        .header("X-Member-Id", MEMBER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new EnrollmentCreateRequest(courseId))))
                 .andExpect(status().isCreated());
 
         // when & then
         mockMvc.perform(post("/api/enrollments")
-                        .header("X-User-Id", USER_ID)
+                        .header("X-Member-Id", MEMBER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new EnrollmentCreateRequest(courseId))))
                 .andExpect(status().isConflict())

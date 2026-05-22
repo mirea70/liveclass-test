@@ -38,8 +38,8 @@ import static org.mockito.BDDMockito.given;
 class EnrollmentServiceTest {
 
     private static final Long COURSE_ID = 1L;
-    private static final Long USER_ID = 200L;
-    private static final Long OTHER_USER_ID = 999L;
+    private static final Long MEMBER_ID = 200L;
+    private static final Long OTHER_MEMBER_ID = 999L;
     private static final Long ENROLLMENT_ID = 10L;
 
     @InjectMocks
@@ -69,12 +69,12 @@ class EnrollmentServiceTest {
         });
 
         // when
-        EnrollmentResponse response = enrollmentService.enroll(COURSE_ID, USER_ID);
+        EnrollmentResponse response = enrollmentService.enroll(COURSE_ID, MEMBER_ID);
 
         // then
         assertThat(response.id()).isEqualTo(ENROLLMENT_ID);
         assertThat(response.courseId()).isEqualTo(COURSE_ID);
-        assertThat(response.userId()).isEqualTo(USER_ID);
+        assertThat(response.memberId()).isEqualTo(MEMBER_ID);
         assertThat(response.status()).isEqualTo(EnrollmentStatus.PENDING);
         assertThat(count.getCount()).isEqualTo(1);
     }
@@ -95,7 +95,7 @@ class EnrollmentServiceTest {
         });
 
         // when
-        EnrollmentResponse response = enrollmentService.enroll(COURSE_ID, USER_ID);
+        EnrollmentResponse response = enrollmentService.enroll(COURSE_ID, MEMBER_ID);
 
         // then
         assertThat(response.status()).isEqualTo(EnrollmentStatus.WAITING);
@@ -110,7 +110,7 @@ class EnrollmentServiceTest {
         given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
 
         // when & then
-        assertThatThrownBy(() -> enrollmentService.enroll(COURSE_ID, USER_ID))
+        assertThatThrownBy(() -> enrollmentService.enroll(COURSE_ID, MEMBER_ID))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorInfo())
                 .isEqualTo(EnrollmentErrorInfo.COURSE_NOT_OPEN);
@@ -122,13 +122,13 @@ class EnrollmentServiceTest {
         // given
         Course course = createOpenCourse(30);
         given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
-        given(enrollmentRepository.existsByCourseIdAndUserIdAndStatusIn(
-                COURSE_ID, USER_ID,
+        given(enrollmentRepository.existsByCourseIdAndMemberIdAndStatusIn(
+                COURSE_ID, MEMBER_ID,
                 List.of(EnrollmentStatus.WAITING, EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED)))
                 .willReturn(true);
 
         // when & then
-        assertThatThrownBy(() -> enrollmentService.enroll(COURSE_ID, USER_ID))
+        assertThatThrownBy(() -> enrollmentService.enroll(COURSE_ID, MEMBER_ID))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorInfo())
                 .isEqualTo(EnrollmentErrorInfo.DUPLICATE_ENROLLMENT);
@@ -146,7 +146,7 @@ class EnrollmentServiceTest {
                 .willThrow(new DataIntegrityViolationException("unique constraint"));
 
         // when & then
-        assertThatThrownBy(() -> enrollmentService.enroll(COURSE_ID, USER_ID))
+        assertThatThrownBy(() -> enrollmentService.enroll(COURSE_ID, MEMBER_ID))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorInfo())
                 .isEqualTo(EnrollmentErrorInfo.DUPLICATE_ENROLLMENT);
@@ -159,7 +159,7 @@ class EnrollmentServiceTest {
         given(courseRepository.findById(COURSE_ID)).willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> enrollmentService.enroll(COURSE_ID, USER_ID))
+        assertThatThrownBy(() -> enrollmentService.enroll(COURSE_ID, MEMBER_ID))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorInfo())
                 .isEqualTo(CourseErrorInfo.COURSE_NOT_FOUND);
@@ -174,11 +174,11 @@ class EnrollmentServiceTest {
         void transitionsToConfirmed_whenValidPendingRequest() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createPending(COURSE_ID, USER_ID);
+            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
 
             // when
-            EnrollmentResponse response = enrollmentService.confirm(enrollmentId, USER_ID);
+            EnrollmentResponse response = enrollmentService.confirm(enrollmentId, MEMBER_ID);
 
             // then
             assertThat(response.status()).isEqualTo(EnrollmentStatus.CONFIRMED);
@@ -192,11 +192,11 @@ class EnrollmentServiceTest {
         void throwsNotEnrollmentOwner_whenRequesterIsNotOwner() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createPending(COURSE_ID, USER_ID);
+            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
 
             // when & then
-            assertThatThrownBy(() -> enrollmentService.confirm(enrollmentId, OTHER_USER_ID))
+            assertThatThrownBy(() -> enrollmentService.confirm(enrollmentId, OTHER_MEMBER_ID))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorInfo())
                     .isEqualTo(EnrollmentErrorInfo.NOT_ENROLLMENT_OWNER);
@@ -208,11 +208,11 @@ class EnrollmentServiceTest {
         void throwsNotConfirmableStatus_whenEnrollmentIsNotPending() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createWaiting(COURSE_ID, USER_ID);
+            Enrollment enrollment = Enrollment.createWaiting(COURSE_ID, MEMBER_ID);
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
 
             // when & then
-            assertThatThrownBy(() -> enrollmentService.confirm(enrollmentId, USER_ID))
+            assertThatThrownBy(() -> enrollmentService.confirm(enrollmentId, MEMBER_ID))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorInfo())
                     .isEqualTo(EnrollmentErrorInfo.NOT_CONFIRMABLE_STATUS);
@@ -226,7 +226,7 @@ class EnrollmentServiceTest {
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.empty());
 
             // when & then
-            assertThatThrownBy(() -> enrollmentService.confirm(enrollmentId, USER_ID))
+            assertThatThrownBy(() -> enrollmentService.confirm(enrollmentId, MEMBER_ID))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorInfo())
                     .isEqualTo(EnrollmentErrorInfo.ENROLLMENT_NOT_FOUND);
@@ -242,11 +242,11 @@ class EnrollmentServiceTest {
         void cancelsWaiting_whenOwnerRequests() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createWaiting(COURSE_ID, USER_ID);
+            Enrollment enrollment = Enrollment.createWaiting(COURSE_ID, MEMBER_ID);
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
 
             // when
-            EnrollmentResponse response = enrollmentService.cancel(enrollmentId, USER_ID);
+            EnrollmentResponse response = enrollmentService.cancel(enrollmentId, MEMBER_ID);
 
             // then
             assertThat(response.status()).isEqualTo(EnrollmentStatus.CANCELLED);
@@ -259,7 +259,7 @@ class EnrollmentServiceTest {
         void decreasesCount_whenPendingCancelledAndNoWaiting() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createPending(COURSE_ID, USER_ID);
+            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
             CourseEnrollCount enrollCount = CourseEnrollCount.createNew(COURSE_ID);
             enrollCount.tryReserve(30);
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
@@ -268,7 +268,7 @@ class EnrollmentServiceTest {
             given(courseEnrollCountRepository.findById(COURSE_ID)).willReturn(Optional.of(enrollCount));
 
             // when
-            enrollmentService.cancel(enrollmentId, USER_ID);
+            enrollmentService.cancel(enrollmentId, MEMBER_ID);
 
             // then
             assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
@@ -280,7 +280,7 @@ class EnrollmentServiceTest {
         void cancelsConfirmed_whenWithinCancellationWindow() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createPending(COURSE_ID, USER_ID);
+            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
             enrollment.confirm(LocalDateTime.now().minusDays(3));
             CourseEnrollCount enrollCount = CourseEnrollCount.createNew(COURSE_ID);
             enrollCount.tryReserve(30);
@@ -290,7 +290,7 @@ class EnrollmentServiceTest {
             given(courseEnrollCountRepository.findById(COURSE_ID)).willReturn(Optional.of(enrollCount));
 
             // when
-            enrollmentService.cancel(enrollmentId, USER_ID);
+            enrollmentService.cancel(enrollmentId, MEMBER_ID);
 
             // then
             assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
@@ -302,12 +302,12 @@ class EnrollmentServiceTest {
         void throwsCancellationWindowExpired_whenConfirmedTooLongAgo() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createPending(COURSE_ID, USER_ID);
+            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
             enrollment.confirm(LocalDateTime.now().minusDays(8));
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
 
             // when & then
-            assertThatThrownBy(() -> enrollmentService.cancel(enrollmentId, USER_ID))
+            assertThatThrownBy(() -> enrollmentService.cancel(enrollmentId, MEMBER_ID))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorInfo())
                     .isEqualTo(EnrollmentErrorInfo.CANCELLATION_WINDOW_EXPIRED);
@@ -319,7 +319,7 @@ class EnrollmentServiceTest {
         void promotesOldestWaiting_whenPendingCancelledAndWaitingExists() {
             // given
             Long enrollmentId = 10L;
-            Enrollment cancelled = Enrollment.createPending(COURSE_ID, USER_ID);
+            Enrollment cancelled = Enrollment.createPending(COURSE_ID, MEMBER_ID);
             Enrollment oldestWaiting = Enrollment.createWaiting(COURSE_ID, 300L);
             CourseEnrollCount enrollCount = CourseEnrollCount.createNew(COURSE_ID);
             enrollCount.tryReserve(30);
@@ -328,7 +328,7 @@ class EnrollmentServiceTest {
                     .willReturn(Optional.of(oldestWaiting));
 
             // when
-            enrollmentService.cancel(enrollmentId, USER_ID);
+            enrollmentService.cancel(enrollmentId, MEMBER_ID);
 
             // then
             assertThat(cancelled.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
@@ -341,11 +341,11 @@ class EnrollmentServiceTest {
         void throwsNotEnrollmentOwner_whenRequesterIsNotOwner() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createPending(COURSE_ID, USER_ID);
+            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
 
             // when & then
-            assertThatThrownBy(() -> enrollmentService.cancel(enrollmentId, OTHER_USER_ID))
+            assertThatThrownBy(() -> enrollmentService.cancel(enrollmentId, OTHER_MEMBER_ID))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorInfo())
                     .isEqualTo(EnrollmentErrorInfo.NOT_ENROLLMENT_OWNER);
@@ -360,7 +360,7 @@ class EnrollmentServiceTest {
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.empty());
 
             // when & then
-            assertThatThrownBy(() -> enrollmentService.cancel(enrollmentId, USER_ID))
+            assertThatThrownBy(() -> enrollmentService.cancel(enrollmentId, MEMBER_ID))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorInfo())
                     .isEqualTo(EnrollmentErrorInfo.ENROLLMENT_NOT_FOUND);
@@ -371,12 +371,12 @@ class EnrollmentServiceTest {
         void throwsAlreadyCancelled_whenAlreadyCancelled() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createPending(COURSE_ID, USER_ID);
+            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
             enrollment.cancel(LocalDateTime.now().minusDays(1), java.time.Duration.ofDays(7));
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
 
             // when & then
-            assertThatThrownBy(() -> enrollmentService.cancel(enrollmentId, USER_ID))
+            assertThatThrownBy(() -> enrollmentService.cancel(enrollmentId, MEMBER_ID))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorInfo())
                     .isEqualTo(EnrollmentErrorInfo.ALREADY_CANCELLED);

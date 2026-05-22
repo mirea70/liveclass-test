@@ -39,7 +39,7 @@ class CourseServiceTest {
 
     private static final Long COURSE_ID = 1L;
     private static final Long CREATOR_ID = 100L;
-    private static final Long OTHER_USER_ID = 999L;
+    private static final Long OTHER_MEMBER_ID = 999L;
 
     @InjectMocks
     private CourseService courseService;
@@ -159,7 +159,7 @@ class CourseServiceTest {
             given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
 
             // when & then
-            assertThatThrownBy(() -> courseService.updateStatus(COURSE_ID, OTHER_USER_ID, CourseStatus.OPEN))
+            assertThatThrownBy(() -> courseService.updateStatus(COURSE_ID, OTHER_MEMBER_ID, CourseStatus.OPEN))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorInfo())
                     .isEqualTo(CourseErrorInfo.NOT_COURSE_CREATOR);

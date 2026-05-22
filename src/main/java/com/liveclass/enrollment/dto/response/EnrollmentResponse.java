@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 public record EnrollmentResponse(
         Long id,
         Long courseId,
-        Long userId,
+        Long memberId,
         EnrollmentStatus status,
         LocalDateTime confirmedAt,
         LocalDateTime cancelledAt
@@ -17,7 +17,7 @@ public record EnrollmentResponse(
         return new EnrollmentResponse(
                 enrollment.getId(),
                 enrollment.getCourseId(),
-                enrollment.getUserId(),
+                enrollment.getMemberId(),
                 enrollment.getStatus(),
                 enrollment.getConfirmedAt(),
                 enrollment.getCancelledAt()
