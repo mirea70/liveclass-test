@@ -9,6 +9,7 @@ import com.liveclass.course.service.CourseService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.URI;
 import java.util.List;
 
 @RestController
@@ -30,12 +32,14 @@ public class CourseController {
     private final CourseService courseService;
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public CourseResponse create(
+    public ResponseEntity<CourseResponse> create(
             @RequestHeader("X-User-Id") Long userId,
             @RequestBody @Valid CourseCreateRequest request
     ) {
-        return courseService.create(userId, request);
+        CourseResponse response = courseService.create(userId, request);
+        return ResponseEntity
+                .created(URI.create("/api/courses/" + response.id()))
+                .body(response);
     }
 
     @PatchMapping("/{courseId}/status")
