@@ -106,8 +106,8 @@ class CourseStatusUpdateIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("DRAFT 강의에 CLOSED 요청 시 COURSE_002로 400을 반환한다")
-    void returns400_whenInvalidStatusTransition() throws Exception {
+    @DisplayName("DRAFT 강의에 CLOSED 요청 시 COURSE_002로 409를 반환한다")
+    void returns409_whenInvalidStatusTransition() throws Exception {
         // given
         Course course = saveDraftCourse();
         CourseStatusUpdateRequest request = new CourseStatusUpdateRequest(CourseStatus.CLOSED);
@@ -117,7 +117,7 @@ class CourseStatusUpdateIntegrationTest extends IntegrationTestSupport {
                         .header("X-User-Id", CREATOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("COURSE_002"));
     }
 
