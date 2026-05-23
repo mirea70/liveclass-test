@@ -28,6 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -49,7 +50,7 @@ class EnrollmentConcurrencyTest {
     @MockitoSpyBean
     private CourseEnrollCountRepository courseEnrollCountRepository;
 
-    @Autowired
+    @MockitoSpyBean
     private EnrollmentRepository enrollmentRepository;
 
     @PersistenceContext
@@ -228,6 +229,87 @@ class EnrollmentConcurrencyTest {
                 .as("취소된 자리를 신규 신청자가 차지해야 한다.")
                 .isEqualTo(capacity);
         assertThat(courseEnrollCountRepository.findById(courseId).orElseThrow().getCount()).isEqualTo(capacity);
+    }
+
+    @Test
+    @DisplayName("서로 다른 사용자의 수강취소가 동시에 들어와 둘 다 같은 대기자를 승격시키려고 해도, 대기자는 정확히 한 번만 승격되고 카운터는 1 감소한다.")
+    void promoteOnceAndReleaseOnce_whenConcurrentCancelsCompeteForSameWaiter() throws Exception {
+        // given: 정원 2짜리 강좌 생성, B/C가 PENDING, W가 대기 1명 → 카운터 count=2 (꽉 참)
+        int capacity = 2;
+        Long ownerB = MEMBER_ID;
+        Long ownerC = 301L;
+        Long ownerW = 302L;
+        Long courseId = saveOpenCourseWithCapacity(capacity);
+        Long bEnrollmentId = enrollmentRepository.save(Enrollment.createPending(courseId, ownerB)).getId();
+        Long cEnrollmentId = enrollmentRepository.save(Enrollment.createPending(courseId, ownerC)).getId();
+        Long wEnrollmentId = enrollmentRepository.save(Enrollment.createWaiting(courseId, ownerW)).getId();
+        CourseEnrollCount counter = courseEnrollCountRepository.findById(courseId).orElseThrow();
+        counter.tryReserve(capacity);
+        counter.tryReserve(capacity);
+        courseEnrollCountRepository.save(counter);
+
+        AtomicInteger callOrder = new AtomicInteger();
+        CountDownLatch bothFoundSameWaiter = new CountDownLatch(1);
+        CountDownLatch t1Committed = new CountDownLatch(1);
+
+        // Mock으로 "두 취소 트랜잭션이 같은 대기자 W를 동시에 발견하는 상황" 재현
+        Mockito.doAnswer(invocation -> {
+            int order = callOrder.incrementAndGet();
+            Enrollment w = entityManager.find(Enrollment.class, wEnrollmentId);
+            Optional<Enrollment> result = (w != null && w.getStatus() == EnrollmentStatus.WAITING)
+                    ? Optional.of(w)
+                    : Optional.empty();
+            // ① T1 첫 호출: W 발견 후 T2도 같은 W를 볼 때까지 대기
+            if (order == 1) {
+                bothFoundSameWaiter.await(10, TimeUnit.SECONDS);
+            }
+            // ② T2 두 번째 호출: W 발견 신호 + T1이 먼저 commit하도록 대기 (commit 순서 강제)
+            else if (order == 2) {
+                bothFoundSameWaiter.countDown();
+                t1Committed.await(10, TimeUnit.SECONDS);
+            }
+            // ③ T2 retry 시: W는 이미 PENDING이라 empty 반환
+            return result;
+        }).when(enrollmentRepository).findFirstByCourseIdAndStatusOrderByCreatedAtAsc(courseId, EnrollmentStatus.WAITING);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        // when: 두 스레드 동시 실행
+
+        // T1: B 취소 스레드 → W를 승격시킨 뒤 commit (먼저 성공)
+        Future<?> t1 = executor.submit(() -> {
+            try {
+                enrollmentService.cancel(bEnrollmentId, ownerB);
+            } finally {
+                t1Committed.countDown();
+            }
+        });
+
+        // T2: C 취소 스레드 → 같은 W를 승격 시도 → 대기열 데이터 Version 충돌 → 재시도 → 신청인원 수 감소
+        Future<?> t2 = executor.submit(() ->
+                enrollmentService.cancel(cEnrollmentId, ownerC));
+
+        t1.get(30, TimeUnit.SECONDS);
+        t2.get(30, TimeUnit.SECONDS);
+        executor.shutdown();
+
+        // then
+
+        // B, C는 모두 취소 상태여야 한다.
+        assertThat(enrollmentRepository.findById(bEnrollmentId).orElseThrow().getStatus())
+                .isEqualTo(EnrollmentStatus.CANCELLED);
+        assertThat(enrollmentRepository.findById(cEnrollmentId).orElseThrow().getStatus())
+                .isEqualTo(EnrollmentStatus.CANCELLED);
+
+        // W는 정확히 한 번만 승격처리 되어야 한다.
+        assertThat(enrollmentRepository.findById(wEnrollmentId).orElseThrow().getStatus())
+                .as("두 취소가 같은 대기자를 승격 시도해도 결과적으로 한 번만 PENDING이어야 한다.")
+                .isEqualTo(EnrollmentStatus.PENDING);
+
+        // 카운터는 정확히 한 번만 감소해야 한다. (한 자리는 W가 채우고, 나머지 한 자리는 신청인원수 감소)
+        assertThat(courseEnrollCountRepository.findById(courseId).orElseThrow().getCount())
+                .as("승격만 두 번 처리되어 카운터 감소가 유실되면 안 된다.")
+                .isEqualTo(capacity - 1);
     }
 
     @Test
