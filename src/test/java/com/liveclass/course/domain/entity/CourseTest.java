@@ -29,19 +29,20 @@ class CourseTest {
     @DisplayName("강의 생성 시 입력값이 그대로 보관된다")
     void preservesInputValues_whenCreated() {
         // given
-        Money price = new Money(99_000L);
-        CoursePeriod period = new CoursePeriod(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31));
+        LocalDate startDate = LocalDate.of(2026, 6, 1);
+        LocalDate endDate = LocalDate.of(2026, 8, 31);
 
         // when
-        Course course = Course.createNew(100L, "Spring Boot 마스터", "Spring Boot 실전", price, 30, period);
+        Course course = Course.createNew(100L, "Spring Boot 마스터", "Spring Boot 실전",
+                99_000L, 30, startDate, endDate);
 
         // then
         assertThat(course.getCreatorId()).isEqualTo(100L);
         assertThat(course.getTitle()).isEqualTo("Spring Boot 마스터");
         assertThat(course.getDescription()).isEqualTo("Spring Boot 실전");
-        assertThat(course.getPrice()).isEqualTo(price);
+        assertThat(course.getPrice()).isEqualTo(new Money(99_000L));
         assertThat(course.getCapacity()).isEqualTo(30);
-        assertThat(course.getPeriod()).isEqualTo(period);
+        assertThat(course.getPeriod()).isEqualTo(new CoursePeriod(startDate, endDate));
     }
 
     @Test
@@ -186,9 +187,10 @@ class CourseTest {
                 100L,
                 "Spring Boot 마스터",
                 "Spring Boot 실전",
-                new Money(99_000L),
+                99_000L,
                 capacity,
-                new CoursePeriod(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31))
+                LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 8, 31)
         );
     }
 }

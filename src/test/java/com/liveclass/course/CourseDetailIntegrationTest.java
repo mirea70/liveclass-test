@@ -63,9 +63,10 @@ class CourseDetailIntegrationTest extends IntegrationTestSupport {
                 CREATOR_ID,
                 "Spring Boot 마스터",
                 "Spring Boot 실전 강의",
-                new Money(99_000L),
+                99_000L,
                 30,
-                new CoursePeriod(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31))
+                LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 8, 31)
         );
         Course saved = courseRepository.save(course);
         CourseEnrollCount enrollCount = courseEnrollCountRepository.save(CourseEnrollCount.createNew(saved.getId()));

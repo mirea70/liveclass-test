@@ -217,9 +217,9 @@ class EnrollmentConcurrencyTest {
                 CREATOR_ID,
                 "Spring Boot 마스터",
                 "Spring Boot 실전 강의",
-                new Money(99_000L),
+                99_000L,
                 capacity,
-                new CoursePeriod(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31)));
+                LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31));
         course.open();
         Course saved = courseRepository.save(course);
         courseEnrollCountRepository.save(CourseEnrollCount.createNew(saved.getId()));

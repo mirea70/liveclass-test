@@ -78,8 +78,8 @@ class MyEnrollmentsIntegrationTest extends IntegrationTestSupport {
     private Long saveOpenCourse(String title, long price) {
         Course course = Course.createNew(
                 CREATOR_ID, title, "desc",
-                new Money(price), 30,
-                new CoursePeriod(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31)));
+                price, 30,
+                LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31));
         course.open();
         Course saved = courseRepository.save(course);
         courseEnrollCountRepository.save(CourseEnrollCount.createNew(saved.getId()));

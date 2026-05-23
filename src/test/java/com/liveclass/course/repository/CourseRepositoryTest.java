@@ -1,9 +1,7 @@
 package com.liveclass.course.repository;
 
-import com.liveclass.common.domain.vo.Money;
 import com.liveclass.course.domain.entity.Course;
 import com.liveclass.course.domain.entity.CourseStatus;
-import com.liveclass.course.domain.vo.CoursePeriod;
 import com.liveclass.support.JpaTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -95,9 +93,9 @@ class CourseRepositoryTest extends JpaTestSupport {
     @DisplayName("Money와 CoursePeriod 값 객체가 영속·조회된다")
     void persistsEmbeddedValueObjects_whenSaved() {
         // given
-        Money price = new Money(99_000L);
-        CoursePeriod period = new CoursePeriod(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31));
-        Course course = Course.createNew(100L, "Spring Boot 마스터", "Spring Boot 실전", price, 30, period);
+        Course course = Course.createNew(100L, "Spring Boot 마스터", "Spring Boot 실전",
+                99_000L, 30,
+                LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31));
 
         Course saved = courseRepository.saveAndFlush(course);
         Long id = saved.getId();
@@ -138,9 +136,10 @@ class CourseRepositoryTest extends JpaTestSupport {
                 100L,
                 "Spring Boot 마스터",
                 "Spring Boot 실전",
-                new Money(99_000L),
+                99_000L,
                 30,
-                new CoursePeriod(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31))
+                LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 8, 31)
         );
     }
 }

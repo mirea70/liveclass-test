@@ -448,8 +448,8 @@ class EnrollmentServiceTest {
         private Course createCourseOwnedBy(Long creatorId) {
             Course course = Course.createNew(
                     creatorId, "Spring Boot 마스터", "Spring Boot 실전",
-                    new Money(99_000L), 30,
-                    new CoursePeriod(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31)));
+                    99_000L, 30,
+                    LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31));
             ReflectionTestUtils.setField(course, "id", COURSE_ID);
             return course;
         }
@@ -487,8 +487,8 @@ class EnrollmentServiceTest {
     private Course createDraftCourse(int capacity) {
         Course course = Course.createNew(
                 100L, "Spring Boot 마스터", "Spring Boot 실전",
-                new Money(99_000L), capacity,
-                new CoursePeriod(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31)));
+                99_000L, capacity,
+                LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31));
         ReflectionTestUtils.setField(course, "id", COURSE_ID);
         return course;
     }
@@ -496,8 +496,8 @@ class EnrollmentServiceTest {
     private Course createOpenCourse(int capacity) {
         Course course = Course.createNew(
                 100L, "Spring Boot 마스터", "Spring Boot 실전",
-                new Money(99_000L), capacity,
-                new CoursePeriod(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31)));
+                99_000L, capacity,
+                LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31));
         course.open();
         ReflectionTestUtils.setField(course, "id", COURSE_ID);
         return course;

@@ -22,6 +22,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
+
 @Getter
 @Entity
 @Table(
@@ -76,11 +78,20 @@ public class Course extends BaseEntity {
         this.status = CourseStatus.DRAFT;
     }
 
-    public static Course createNew(Long creatorId, String title, String description, Money price, int capacity, CoursePeriod period) {
+    public static Course createNew(Long creatorId, String title, String description,
+                                   long price, int capacity,
+                                   LocalDate startDate, LocalDate endDate) {
         if (capacity < 1) {
             throw new DomainException(CourseErrorInfo.CAPACITY_INVALID_VALUE);
         }
-        return new Course(creatorId, title, description, price, capacity, period);
+        return new Course(
+                creatorId,
+                title,
+                description,
+                new Money(price),
+                capacity,
+                new CoursePeriod(startDate, endDate)
+        );
     }
 
     public void open() {

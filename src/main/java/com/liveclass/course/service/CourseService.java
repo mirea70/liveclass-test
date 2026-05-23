@@ -1,13 +1,11 @@
 package com.liveclass.course.service;
 
-import com.liveclass.common.domain.vo.Money;
 import com.liveclass.common.error.exception.BusinessException;
 import com.liveclass.common.error.exception.DomainException;
 import com.liveclass.common.error.info.CourseErrorInfo;
 import com.liveclass.course.domain.entity.Course;
 import com.liveclass.course.domain.entity.CourseEnrollCount;
 import com.liveclass.course.domain.entity.CourseStatus;
-import com.liveclass.course.domain.vo.CoursePeriod;
 import com.liveclass.course.dto.request.CourseCreateRequest;
 import com.liveclass.course.dto.response.CourseResponse;
 import com.liveclass.course.dto.response.CourseSummaryResponse;
@@ -36,13 +34,14 @@ public class CourseService {
                         creatorId,
                         request.title(),
                         request.description(),
-                        new Money(request.price()),
+                        request.price(),
                         request.capacity(),
-                        new CoursePeriod(request.startDate(), request.endDate())
+                        request.startDate(),
+                        request.endDate()
                 )
         );
-        CourseEnrollCount countEntity = courseEnrollCountRepository.save(CourseEnrollCount.createNew(course.getId()));
-        return CourseResponse.from(course, countEntity.getCount());
+        CourseEnrollCount courseEnrollCount = courseEnrollCountRepository.save(CourseEnrollCount.createNew(course.getId()));
+        return CourseResponse.from(course, courseEnrollCount.getCount());
     }
 
     @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 10)

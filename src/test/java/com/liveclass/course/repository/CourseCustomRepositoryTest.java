@@ -143,9 +143,10 @@ class CourseCustomRepositoryTest extends JpaTestSupport {
                 100L,
                 title,
                 "설명",
-                new Money(99_000L),
+                99_000L,
                 30,
-                new CoursePeriod(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31))
+                LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 8, 31)
         );
         if (targetStatus == CourseStatus.OPEN || targetStatus == CourseStatus.CLOSED) {
             course.open();

@@ -210,8 +210,8 @@ class EnrollmentCustomRepositoryTest extends JpaTestSupport {
     private Long saveCourse(String title, long price) {
         Course course = Course.createNew(
                 100L, title, "description",
-                new Money(price), 30,
-                new CoursePeriod(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31)));
+                price, 30,
+                LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31));
         course.open();
         return courseRepository.saveAndFlush(course).getId();
     }
