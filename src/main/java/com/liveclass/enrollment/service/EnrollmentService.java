@@ -14,6 +14,8 @@ import com.liveclass.enrollment.dto.response.EnrollmentResponse;
 import com.liveclass.enrollment.dto.response.MyEnrollmentResponse;
 import com.liveclass.enrollment.dto.response.StudentResponse;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -39,6 +41,7 @@ public class EnrollmentService {
     private final CourseRepository courseRepository;
     private final CourseEnrollCountRepository courseEnrollCountRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final EntityManager entityManager;
 
     @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 10)
     @Transactional
@@ -117,9 +120,12 @@ public class EnrollmentService {
     private Enrollment reserveOrEnqueue(Course course, Long memberId) {
         CourseEnrollCount enrollCount = courseEnrollCountRepository.findById(course.getId())
                 .orElseThrow(() -> new BusinessException(CourseErrorInfo.COURSE_NOT_FOUND));
-        return enrollCount.tryReserve(course.getCapacity())
-                ? Enrollment.createPending(course.getId(), memberId)
-                : Enrollment.createWaiting(course.getId(), memberId);
+        if (enrollCount.tryReserve(course.getCapacity())) {
+            return Enrollment.createPending(course.getId(), memberId);
+        }
+
+        entityManager.lock(enrollCount, LockModeType.OPTIMISTIC);
+        return Enrollment.createWaiting(course.getId(), memberId);
     }
 
     private Enrollment saveOrThrowDuplicate(Enrollment enrollment) {

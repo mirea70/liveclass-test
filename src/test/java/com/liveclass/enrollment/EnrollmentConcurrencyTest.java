@@ -1,28 +1,33 @@
 package com.liveclass.enrollment;
 
-import com.liveclass.common.domain.vo.Money;
 import com.liveclass.course.domain.entity.Course;
 import com.liveclass.course.domain.entity.CourseEnrollCount;
-import com.liveclass.course.domain.vo.CoursePeriod;
 import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.domain.entity.Enrollment;
 import com.liveclass.enrollment.domain.entity.EnrollmentStatus;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
 import com.liveclass.enrollment.service.EnrollmentService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -41,11 +46,14 @@ class EnrollmentConcurrencyTest {
     @Autowired
     private CourseRepository courseRepository;
 
-    @Autowired
+    @MockitoSpyBean
     private CourseEnrollCountRepository courseEnrollCountRepository;
 
     @Autowired
     private EnrollmentRepository enrollmentRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @AfterEach
     void cleanUp() {
@@ -143,6 +151,82 @@ class EnrollmentConcurrencyTest {
         long waitingRemaining = countByStatus(EnrollmentStatus.WAITING);
         assertThat(pendingTotal).isEqualTo(capacity);
         assertThat(waitingRemaining).isEqualTo(waitingCount - 1);
+        assertThat(courseEnrollCountRepository.findById(courseId).orElseThrow().getCount()).isEqualTo(capacity);
+    }
+
+    @Test
+    @DisplayName("정원이 가득 찬 상태에서 수강신청 트랜잭션이 현재신청인원 카운터를 본 직후 완료되기 전, 취소가 commit되면 대기상태가 아닌 신청완료 상태로 저장된다.")
+    void enrollObservesCancelledSeat_throughOptimisticRetry() throws Exception {
+        // given: 정원 1짜리 강좌 생성, 수강신청 B를 PENDING으로 등록 -> 카운터 count=1 (꽉 참), 대기열 없음
+        int capacity = 1;
+        Long ownerOfPending = MEMBER_ID;
+        Long newApplicant = 300L;
+        Long courseId = saveOpenCourseWithCapacity(capacity);
+        Long pendingEnrollmentId = enrollmentRepository.save(
+                Enrollment.createPending(courseId, ownerOfPending)).getId();
+        CourseEnrollCount counter = courseEnrollCountRepository.findById(courseId).orElseThrow();
+        counter.tryReserve(capacity);
+        courseEnrollCountRepository.save(counter);
+
+        CountDownLatch enrollLoadedCounter = new CountDownLatch(1);
+        CountDownLatch cancelCommitted = new CountDownLatch(1);
+        AtomicBoolean hookActive = new AtomicBoolean(true);
+
+        // Mock으로 "수강신청 A가 낡은 카운터를 보는 상황" 재현
+        Mockito.doAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            // ① 첫 번째 호출: 옛날 스냅샷 카운터 미리 찍어두고
+            if (hookActive.compareAndSet(true, false)) {
+                CourseEnrollCount snapshotCount = entityManager.find(CourseEnrollCount.class, id);
+                enrollLoadedCounter.countDown();
+                cancelCommitted.await(10, TimeUnit.SECONDS); // 수강신청 B 취소 끝날 때까지 대기
+                return Optional.ofNullable(snapshotCount); // 이전 카운터 반환
+            }
+            // ② retry 시: 최신 카운터 반환
+            return Optional.ofNullable(entityManager.find(CourseEnrollCount.class, id));
+        }).when(courseEnrollCountRepository).findById(courseId);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        // when: 두 스레드 동시 실행
+
+        // A: 수강신청 스레드 → 카운터 로드 직후 멈춤
+        Future<?> enrollFuture = executor.submit(() ->
+                enrollmentService.enroll(courseId, newApplicant));
+
+        // B: 수강취소 스레드 → 수강신청 A가 카운터 본 걸 확인 후 수강취소 실행
+        Future<?> cancelFuture = executor.submit(() -> {
+            try {
+                assertThat(enrollLoadedCounter.await(10, TimeUnit.SECONDS)).isTrue();
+                enrollmentService.cancel(pendingEnrollmentId, ownerOfPending);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                cancelCommitted.countDown();
+            }
+        });
+
+        enrollFuture.get(30, TimeUnit.SECONDS);
+        cancelFuture.get(30, TimeUnit.SECONDS);
+        executor.shutdown();
+
+        // then
+
+        // 수강취소가 완료되어 데이터 B가 취소상태여야한다.
+        Enrollment originalPending = enrollmentRepository.findById(pendingEnrollmentId).orElseThrow();
+        assertThat(originalPending.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
+
+        List<Enrollment> all = enrollmentRepository.findAll();
+        long waitingTotal = all.stream().filter(e -> e.getStatus() == EnrollmentStatus.WAITING).count();
+        long pendingTotal = all.stream().filter(e -> e.getStatus() == EnrollmentStatus.PENDING).count();
+
+        assertThat(waitingTotal)
+                .as("정원이 빈 채로 대기상태의 수강신청 데이터가 생기면 안된다.")
+                .isZero();
+
+        assertThat(pendingTotal)
+                .as("취소된 자리를 신규 신청자가 차지해야 한다.")
+                .isEqualTo(capacity);
         assertThat(courseEnrollCountRepository.findById(courseId).orElseThrow().getCount()).isEqualTo(capacity);
     }
 

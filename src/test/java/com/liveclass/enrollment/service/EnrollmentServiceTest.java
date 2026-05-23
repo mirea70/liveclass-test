@@ -1,33 +1,32 @@
 package com.liveclass.enrollment.service;
 
-import com.liveclass.common.domain.vo.Money;
+import com.liveclass.common.dto.PageResponse;
 import com.liveclass.common.error.exception.BusinessException;
 import com.liveclass.common.error.info.CourseErrorInfo;
 import com.liveclass.common.error.info.EnrollmentErrorInfo;
 import com.liveclass.course.domain.entity.Course;
 import com.liveclass.course.domain.entity.CourseEnrollCount;
-import com.liveclass.course.domain.vo.CoursePeriod;
 import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.domain.entity.Enrollment;
 import com.liveclass.enrollment.domain.entity.EnrollmentStatus;
-import com.liveclass.common.dto.PageResponse;
 import com.liveclass.enrollment.dto.response.EnrollmentResponse;
 import com.liveclass.enrollment.dto.response.MyEnrollmentResponse;
 import com.liveclass.enrollment.dto.response.StudentResponse;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
-import org.junit.jupiter.api.Nested;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
@@ -60,6 +59,9 @@ class EnrollmentServiceTest {
 
     @Mock
     private EnrollmentRepository enrollmentRepository;
+
+    @Mock
+    private EntityManager entityManager;
 
     @Test
     @DisplayName("정원이 남아있으면 PENDING 상태로 등록되고 count가 +1된다")
