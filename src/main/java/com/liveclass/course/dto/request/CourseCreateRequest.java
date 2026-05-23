@@ -17,11 +17,13 @@ public record CourseCreateRequest(
         @NotBlank
         String description,
 
+        @NotNull
         @PositiveOrZero
-        long price,
+        Long price,
 
+        @NotNull
         @Positive
-        int capacity,
+        Integer capacity,
 
         @NotNull
         LocalDate startDate,
