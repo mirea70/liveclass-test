@@ -27,8 +27,8 @@ public record CourseResponse(
                 course.getPrice().amount(),
                 course.getCapacity(),
                 enrollCount,
-                course.getPeriod().getStartDate(),
-                course.getPeriod().getEndDate(),
+                course.getPeriod().startDate(),
+                course.getPeriod().endDate(),
                 course.getStatus()
         );
     }

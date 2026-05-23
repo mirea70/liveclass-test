@@ -108,8 +108,8 @@ class CourseRepositoryTest extends JpaTestSupport {
 
         // then
         assertThat(loaded.getPrice().amount()).isEqualTo(99_000L);
-        assertThat(loaded.getPeriod().getStartDate()).isEqualTo(LocalDate.of(2026, 6, 1));
-        assertThat(loaded.getPeriod().getEndDate()).isEqualTo(LocalDate.of(2026, 8, 31));
+        assertThat(loaded.getPeriod().startDate()).isEqualTo(LocalDate.of(2026, 6, 1));
+        assertThat(loaded.getPeriod().endDate()).isEqualTo(LocalDate.of(2026, 8, 31));
         assertThat(loaded.getCapacity()).isEqualTo(30);
     }
 

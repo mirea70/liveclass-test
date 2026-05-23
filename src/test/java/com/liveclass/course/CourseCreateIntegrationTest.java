@@ -65,8 +65,8 @@ class CourseCreateIntegrationTest extends IntegrationTestSupport {
         assertThat(saved.getDescription()).isEqualTo("Spring Boot 실전 강의");
         assertThat(saved.getPrice().amount()).isEqualTo(99_000L);
         assertThat(saved.getCapacity()).isEqualTo(30);
-        assertThat(saved.getPeriod().getStartDate()).isEqualTo(LocalDate.of(2026, 6, 1));
-        assertThat(saved.getPeriod().getEndDate()).isEqualTo(LocalDate.of(2026, 8, 31));
+        assertThat(saved.getPeriod().startDate()).isEqualTo(LocalDate.of(2026, 6, 1));
+        assertThat(saved.getPeriod().endDate()).isEqualTo(LocalDate.of(2026, 8, 31));
         assertThat(saved.getStatus()).isEqualTo(CourseStatus.DRAFT);
 
         CourseEnrollCount count = courseEnrollCountRepository.findById(courseId).orElseThrow();

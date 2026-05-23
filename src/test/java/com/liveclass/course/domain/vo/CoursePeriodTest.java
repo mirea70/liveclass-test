@@ -25,8 +25,8 @@ class CoursePeriodTest {
         CoursePeriod period = new CoursePeriod(start, end);
 
         // then
-        assertThat(period.getStartDate()).isEqualTo(start);
-        assertThat(period.getEndDate()).isEqualTo(end);
+        assertThat(period.startDate()).isEqualTo(start);
+        assertThat(period.endDate()).isEqualTo(end);
     }
 
     @Test
