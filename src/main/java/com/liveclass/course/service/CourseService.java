@@ -44,7 +44,6 @@ public class CourseService {
         return CourseResponse.from(course, courseEnrollCount.getCount());
     }
 
-    @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 10)
     @Transactional
     public void updateStatus(Long courseId, Long requesterId, CourseStatus targetStatus) {
         Course course = courseRepository.findById(courseId)
