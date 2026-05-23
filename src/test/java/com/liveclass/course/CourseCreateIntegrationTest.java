@@ -63,7 +63,7 @@ class CourseCreateIntegrationTest extends IntegrationTestSupport {
         assertThat(saved.getCreatorId()).isEqualTo(100L);
         assertThat(saved.getTitle()).isEqualTo("Spring Boot 마스터");
         assertThat(saved.getDescription()).isEqualTo("Spring Boot 실전 강의");
-        assertThat(saved.getPrice().getAmount()).isEqualTo(99_000L);
+        assertThat(saved.getPrice().amount()).isEqualTo(99_000L);
         assertThat(saved.getCapacity()).isEqualTo(30);
         assertThat(saved.getPeriod().getStartDate()).isEqualTo(LocalDate.of(2026, 6, 1));
         assertThat(saved.getPeriod().getEndDate()).isEqualTo(LocalDate.of(2026, 8, 31));

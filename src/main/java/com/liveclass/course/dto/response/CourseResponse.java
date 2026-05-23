@@ -24,7 +24,7 @@ public record CourseResponse(
                 course.getCreatorId(),
                 course.getTitle(),
                 course.getDescription(),
-                course.getPrice().getAmount(),
+                course.getPrice().amount(),
                 course.getCapacity(),
                 enrollCount,
                 course.getPeriod().getStartDate(),

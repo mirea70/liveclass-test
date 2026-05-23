@@ -107,7 +107,7 @@ class CourseRepositoryTest extends JpaTestSupport {
         Course loaded = courseRepository.findById(id).orElseThrow();
 
         // then
-        assertThat(loaded.getPrice().getAmount()).isEqualTo(99_000L);
+        assertThat(loaded.getPrice().amount()).isEqualTo(99_000L);
         assertThat(loaded.getPeriod().getStartDate()).isEqualTo(LocalDate.of(2026, 6, 1));
         assertThat(loaded.getPeriod().getEndDate()).isEqualTo(LocalDate.of(2026, 8, 31));
         assertThat(loaded.getCapacity()).isEqualTo(30);
