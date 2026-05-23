@@ -20,7 +20,7 @@ public class CourseCustomRepositoryImpl implements CourseCustomRepository {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<CourseSummaryResponse> findSummaries(CourseStatus status) {
+    public List<CourseSummaryResponse> findAllBy(CourseStatus status) {
         return queryFactory
                 .select(Projections.constructor(CourseSummaryResponse.class,
                         course.id,

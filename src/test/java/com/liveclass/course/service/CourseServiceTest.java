@@ -233,14 +233,14 @@ class CourseServiceTest {
         void delegatesNullStatus_whenStatusIsNull() {
             // given
             List<CourseSummaryResponse> expected = List.of(summary(1L, CourseStatus.DRAFT));
-            given(courseRepository.findSummaries(null)).willReturn(expected);
+            given(courseRepository.findAllBy(null)).willReturn(expected);
 
             // when
             List<CourseSummaryResponse> result = courseService.getList(null);
 
             // then
             assertThat(result).isEqualTo(expected);
-            verify(courseRepository).findSummaries(null);
+            verify(courseRepository).findAllBy(null);
         }
 
         @Test
@@ -248,14 +248,14 @@ class CourseServiceTest {
         void delegatesStatusFilter_whenStatusGiven() {
             // given
             List<CourseSummaryResponse> expected = List.of(summary(1L, CourseStatus.OPEN));
-            given(courseRepository.findSummaries(CourseStatus.OPEN)).willReturn(expected);
+            given(courseRepository.findAllBy(CourseStatus.OPEN)).willReturn(expected);
 
             // when
             List<CourseSummaryResponse> result = courseService.getList(CourseStatus.OPEN);
 
             // then
             assertThat(result).isEqualTo(expected);
-            verify(courseRepository).findSummaries(CourseStatus.OPEN);
+            verify(courseRepository).findAllBy(CourseStatus.OPEN);
         }
     }
 

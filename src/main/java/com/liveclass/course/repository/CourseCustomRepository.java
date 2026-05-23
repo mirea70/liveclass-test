@@ -9,7 +9,7 @@ import java.util.Optional;
 
 public interface CourseCustomRepository {
 
-    List<CourseSummaryResponse> findSummaries(CourseStatus status);
+    List<CourseSummaryResponse> findAllBy(CourseStatus status);
 
     Optional<CourseResponse> findDetail(Long courseId);
 }

@@ -32,7 +32,7 @@ class CourseCustomRepositoryTest extends JpaTestSupport {
         entityManager.clear();
 
         // when
-        List<CourseSummaryResponse> summaries = courseRepository.findSummaries(null);
+        List<CourseSummaryResponse> summaries = courseRepository.findAllBy(null);
 
         // then
         assertThat(summaries).hasSize(3)
@@ -56,7 +56,7 @@ class CourseCustomRepositoryTest extends JpaTestSupport {
         entityManager.clear();
 
         // when
-        List<CourseSummaryResponse> summaries = courseRepository.findSummaries(CourseStatus.OPEN);
+        List<CourseSummaryResponse> summaries = courseRepository.findAllBy(CourseStatus.OPEN);
 
         // then
         assertThat(summaries).hasSize(2)
@@ -78,7 +78,7 @@ class CourseCustomRepositoryTest extends JpaTestSupport {
         entityManager.clear();
 
         // when
-        List<CourseSummaryResponse> summaries = courseRepository.findSummaries(CourseStatus.OPEN);
+        List<CourseSummaryResponse> summaries = courseRepository.findAllBy(CourseStatus.OPEN);
 
         // then
         assertThat(summaries).hasSize(1);
@@ -94,7 +94,7 @@ class CourseCustomRepositoryTest extends JpaTestSupport {
         entityManager.clear();
 
         // when
-        List<CourseSummaryResponse> summaries = courseRepository.findSummaries(CourseStatus.CLOSED);
+        List<CourseSummaryResponse> summaries = courseRepository.findAllBy(CourseStatus.CLOSED);
 
         // then
         assertThat(summaries).isEmpty();

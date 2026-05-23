@@ -1,9 +1,7 @@
 package com.liveclass.course;
 
-import com.liveclass.common.domain.vo.Money;
 import com.liveclass.course.domain.entity.Course;
 import com.liveclass.course.domain.entity.CourseEnrollCount;
-import com.liveclass.course.domain.vo.CoursePeriod;
 import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.domain.entity.Enrollment;

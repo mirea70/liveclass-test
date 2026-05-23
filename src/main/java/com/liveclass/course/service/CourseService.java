@@ -57,7 +57,7 @@ public class CourseService {
     }
 
     public List<CourseSummaryResponse> getList(CourseStatus status) {
-        return courseRepository.findSummaries(status);
+        return courseRepository.findAllBy(status);
     }
 
     public CourseResponse getDetail(Long courseId) {
