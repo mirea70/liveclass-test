@@ -5,6 +5,7 @@ import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
 import com.liveclass.member.repository.MemberRepository;
+import com.liveclass.waitlist.repository.WaitlistRepository;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -32,4 +33,7 @@ public abstract class JpaTestSupport {
 
     @Autowired
     protected MemberRepository memberRepository;
+
+    @Autowired
+    protected WaitlistRepository waitlistRepository;
 }
