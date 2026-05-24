@@ -13,6 +13,7 @@ import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +46,15 @@ public class CourseService {
     }
 
     @Transactional
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = 5,
+            backoff = @Backoff(
+                    delay = 100,
+                    maxDelay = 500,
+                    random = true
+            )
+    )
     public void updateStatus(Long courseId, Long requesterId, CourseStatus targetStatus) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new BusinessException(CourseErrorInfo.COURSE_NOT_FOUND));

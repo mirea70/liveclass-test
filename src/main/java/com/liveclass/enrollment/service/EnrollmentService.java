@@ -54,7 +54,7 @@ public class EnrollmentService {
         return EnrollmentResponse.from(enrollmentRepository.save(enrollment));
     }
 
-    @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 10)
+    @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 5)
     @Transactional
     public EnrollmentResponse confirm(Long enrollmentId, Long memberId) {
         Enrollment enrollment = getEnrollment(enrollmentId);
@@ -63,7 +63,7 @@ public class EnrollmentService {
         return EnrollmentResponse.from(enrollment);
     }
 
-    @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 10)
+    @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 7)
     @Transactional
     public EnrollmentResponse cancel(Long enrollmentId, Long memberId) {
         Enrollment enrollment = getEnrollment(enrollmentId);
