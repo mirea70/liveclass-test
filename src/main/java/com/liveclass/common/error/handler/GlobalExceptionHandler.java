@@ -5,10 +5,12 @@ import com.liveclass.common.error.exception.DomainException;
 import com.liveclass.common.error.info.ErrorInfo;
 import com.liveclass.common.error.info.SystemErrorInfo;
 import com.liveclass.common.error.response.ErrorResponse;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MissingRequestHeaderException;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -69,6 +72,55 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException e, HttpServletRequest request) {
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse(String.valueOf(HttpStatus.BAD_REQUEST.value()), e.getMessage() != null ? e.getMessage() : "잘못된 요청 요소가 존재합니다.", request.getRequestURI()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException e, HttpServletRequest request) {
+
+        Throwable cause = e.getCause();
+        if (cause instanceof InvalidFormatException invalidFormatException) {
+            Class<?> targetType = invalidFormatException.getTargetType();
+            if (targetType != null && targetType.isEnum()) {
+                return handleInvalidEnumValue(invalidFormatException, request);
+            }
+        }
+
+        // 일반적인 JSON 파싱 실패 (잘못된 JSON 형식 등)
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse(
+                        "INVALID_REQUEST",
+                        "요청 본문을 읽을 수 없습니다. JSON 형식을 확인해주세요.",
+                        request.getRequestURI()
+                ));
+    }
+
+    private ResponseEntity<ErrorResponse> handleInvalidEnumValue(
+            InvalidFormatException e, HttpServletRequest request) {
+
+        String fieldName = e.getPath().isEmpty()
+                ? "unknown"
+                : e.getPath().get(0).getFieldName();
+
+        Object invalidValue = e.getValue();
+        Class<?> enumType = e.getTargetType();
+
+        String allowedValues = Arrays.stream(enumType.getEnumConstants())
+                .map(Object::toString)
+                .collect(Collectors.joining(", ", "[", "]"));
+
+        String detailMessage = String.format("'%s' 값은 유효하지 않습니다. 허용되는 값: %s",
+                invalidValue, allowedValues);
+
+        Map<String, Object> details = Map.of(fieldName, detailMessage);
+
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse(
+                        "INVALID_REQUEST",
+                        "요청 정보 중 유효하지 않은 값이 있습니다.",
+                        request.getRequestURI(),
+                        details
+                ));
     }
 
     @ExceptionHandler(Exception.class)

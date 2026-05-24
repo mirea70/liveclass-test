@@ -155,6 +155,23 @@ class CourseControllerTest extends ControllerTestSupport {
     }
 
     @Test
+    @DisplayName("강의 상태 변경 요청에 정의되지 않은 status 값을 보내면 400과 허용되는 값 안내를 반환한다")
+    void returns400_withAllowedValues_whenInvalidEnumValueForStatus() throws Exception {
+        // given
+        String invalidRequest = "{\"status\": \"XXX\"}";
+
+        // when & then
+        mockMvc.perform(patch("/api/courses/{courseId}/status", 1L)
+                        .header("X-Member-Id", 100L)
+                        .contentType("application/json")
+                        .content(invalidRequest))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.details.status").exists())
+                .andExpect(jsonPath("$.details.status").value("'XXX' 값은 유효하지 않습니다. 허용되는 값: [DRAFT, OPEN, CLOSED]"));
+    }
+
+    @Test
     @DisplayName("강의 상태 변경 요청에 X-Member-Id 헤더가 없으면 400을 반환한다")
     void returns400_whenUserIdHeaderMissingForStatusUpdate() throws Exception {
         // given
