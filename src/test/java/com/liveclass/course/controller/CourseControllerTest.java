@@ -253,6 +253,17 @@ class CourseControllerTest extends ControllerTestSupport {
     }
 
     @Test
+    @DisplayName("status 쿼리 파라미터에 유효하지 않은 enum 값을 넣으면 400과 허용 값 안내를 반환한다")
+    void returns400WithAllowedValues_whenInvalidEnumInQueryParam() throws Exception {
+        // when & then
+        mockMvc.perform(get("/api/courses").param("status", "INVALID_STATUS"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.details.status").exists())
+                .andExpect(jsonPath("$.details.status").value("'INVALID_STATUS' 값은 유효하지 않습니다. 허용되는 값: [DRAFT, OPEN, CLOSED]"));
+    }
+
+    @Test
     @DisplayName("강의 상세 조회 시 200과 강의 정보를 반환한다")
     void returns200WithCourseDetail_whenCourseExists() throws Exception {
         // given
