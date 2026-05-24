@@ -46,20 +46,20 @@ class EnrollmentControllerTest extends ControllerTestSupport {
     }
 
     @Test
-    @DisplayName("정원이 차서 대기열로 등록되면 status가 WAITING으로 반환된다")
-    void returnsWaitingStatus_whenQueued() throws Exception {
+    @DisplayName("정원이 가득 차있으면 ENROLLMENT_008로 409를 반환한다")
+    void returns409_whenCapacityFull() throws Exception {
         // given
-        EnrollmentResponse waiting = new EnrollmentResponse(
-                ENROLLMENT_ID, COURSE_ID, MEMBER_ID, EnrollmentStatus.WAITING, null, null);
-        given(enrollmentService.enroll(COURSE_ID, MEMBER_ID)).willReturn(waiting);
+        given(enrollmentService.enroll(COURSE_ID, MEMBER_ID))
+                .willThrow(new com.liveclass.common.error.exception.BusinessException(
+                        com.liveclass.common.error.info.EnrollmentErrorInfo.COURSE_CAPACITY_FULL));
 
         // when & then
         mockMvc.perform(post("/api/enrollments")
                         .header("X-Member-Id", MEMBER_ID)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(new EnrollmentCreateRequest(COURSE_ID))))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("WAITING"));
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ENROLLMENT_008"));
     }
 
     @Test
@@ -289,7 +289,7 @@ class EnrollmentControllerTest extends ControllerTestSupport {
                 new com.liveclass.enrollment.dto.response.MyEnrollmentResponse(
                         ENROLLMENT_ID, COURSE_ID, "Spring Boot", 99_000L,
                         java.time.LocalDate.of(2026, 6, 1), java.time.LocalDate.of(2026, 8, 31),
-                        EnrollmentStatus.WAITING, null, null);
+                        EnrollmentStatus.PENDING, null, null);
         com.liveclass.common.dto.PageResponse<com.liveclass.enrollment.dto.response.MyEnrollmentResponse> pageResponse =
                 new com.liveclass.common.dto.PageResponse<>(java.util.List.of(my), 0, 20, 1L, 1);
         given(enrollmentService.getMyEnrollments(org.mockito.ArgumentMatchers.eq(MEMBER_ID),

@@ -1,9 +1,7 @@
 package com.liveclass.enrollment;
 
-import com.liveclass.common.domain.vo.Money;
 import com.liveclass.course.domain.entity.Course;
 import com.liveclass.course.domain.entity.CourseEnrollCount;
-import com.liveclass.course.domain.vo.CoursePeriod;
 import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.domain.entity.Enrollment;
@@ -13,7 +11,6 @@ import com.liveclass.support.IntegrationTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -42,26 +39,8 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
     private EnrollmentRepository enrollmentRepository;
 
     @Test
-    @DisplayName("WAITING 신청을 본인이 취소하면 200과 CANCELLED 응답을 반환하고 count는 변경되지 않는다")
-    void cancelsWaiting_andCountUnchanged() throws Exception {
-        // given
-        Long courseId = saveOpenCourseWithCount(30, 5);
-        Enrollment waiting = enrollmentRepository.save(Enrollment.createWaiting(courseId, MEMBER_ID));
-
-        // when & then
-        mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", waiting.getId())
-                        .header("X-Member-Id", MEMBER_ID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("CANCELLED"));
-
-        Enrollment reloaded = enrollmentRepository.findById(waiting.getId()).orElseThrow();
-        assertThat(reloaded.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
-        assertThat(courseEnrollCountRepository.findById(courseId).orElseThrow().getCount()).isEqualTo(5);
-    }
-
-    @Test
-    @DisplayName("PENDING 신청을 취소하고 대기자가 없으면 count가 1 감소한다")
-    void decreasesCount_whenPendingCancelledAndNoWaiting() throws Exception {
+    @DisplayName("PENDING 신청을 취소하면 count가 1 감소한다")
+    void decreasesCount_whenPendingCancelled() throws Exception {
         // given
         Long courseId = saveOpenCourseWithCount(30, 1);
         Enrollment pending = enrollmentRepository.save(Enrollment.createPending(courseId, MEMBER_ID));
@@ -72,32 +51,6 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isOk());
 
         assertThat(courseEnrollCountRepository.findById(courseId).orElseThrow().getCount()).isZero();
-    }
-
-    @Test
-    @DisplayName("PENDING 신청을 취소하고 대기자가 있으면 가장 오래된 WAITING이 PENDING으로 승격되고 count는 유지된다")
-    void promotesOldestWaiting_whenPendingCancelled() throws Exception {
-        // given
-        Long courseId = saveOpenCourseWithCount(1, 1);
-        Enrollment pending = enrollmentRepository.save(Enrollment.createPending(courseId, MEMBER_ID));
-        Enrollment olderWaiting = enrollmentRepository.save(Enrollment.createWaiting(courseId, 300L));
-        ReflectionTestUtils.setField(olderWaiting, "createdAt", LocalDateTime.of(2026, 1, 1, 0, 0));
-        enrollmentRepository.save(olderWaiting);
-        Enrollment newerWaiting = enrollmentRepository.save(Enrollment.createWaiting(courseId, 400L));
-        ReflectionTestUtils.setField(newerWaiting, "createdAt", LocalDateTime.of(2026, 2, 1, 0, 0));
-        enrollmentRepository.save(newerWaiting);
-
-        // when
-        mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", pending.getId())
-                        .header("X-Member-Id", MEMBER_ID))
-                .andExpect(status().isOk());
-
-        // then
-        Enrollment reloadedOlder = enrollmentRepository.findById(olderWaiting.getId()).orElseThrow();
-        Enrollment reloadedNewer = enrollmentRepository.findById(newerWaiting.getId()).orElseThrow();
-        assertThat(reloadedOlder.getStatus()).isEqualTo(EnrollmentStatus.PENDING);
-        assertThat(reloadedNewer.getStatus()).isEqualTo(EnrollmentStatus.WAITING);
-        assertThat(courseEnrollCountRepository.findById(courseId).orElseThrow().getCount()).isEqualTo(1);
     }
 
     @Test

@@ -20,7 +20,7 @@ import static com.liveclass.member.domain.entity.QMember.member;
 public class EnrollmentCustomRepositoryImpl implements EnrollmentCustomRepository {
 
     private static final List<EnrollmentStatus> ACTIVE_STATUSES =
-            List.of(EnrollmentStatus.WAITING, EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED);
+            List.of(EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED);
 
     private final JPAQueryFactory queryFactory;
 

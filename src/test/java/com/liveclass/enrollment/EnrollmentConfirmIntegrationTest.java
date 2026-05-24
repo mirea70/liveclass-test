@@ -75,14 +75,16 @@ class EnrollmentConfirmIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("WAITING 상태에서 confirm을 호출하면 ENROLLMENT_005로 409를 반환한다")
-    void returns409_whenWaitingStatus() throws Exception {
+    @DisplayName("이미 CONFIRMED 상태에서 다시 confirm을 호출하면 ENROLLMENT_005로 409를 반환한다")
+    void returns409_whenAlreadyConfirmed() throws Exception {
         // given
         Long courseId = saveOpenCourse(30);
-        Enrollment enrollment = enrollmentRepository.save(Enrollment.createWaiting(courseId, MEMBER_ID));
+        Enrollment enrollment = Enrollment.createPending(courseId, MEMBER_ID);
+        enrollment.confirm(java.time.LocalDateTime.now().minusDays(1));
+        Enrollment saved = enrollmentRepository.save(enrollment);
 
         // when & then
-        mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", enrollment.getId())
+        mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", saved.getId())
                         .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_005"));

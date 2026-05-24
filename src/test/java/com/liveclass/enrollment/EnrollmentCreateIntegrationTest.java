@@ -75,25 +75,18 @@ class EnrollmentCreateIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("정원이 차있으면 201과 WAITING 응답을 반환하고 count는 변하지 않는다")
-    void registersWaitingEnrollment_whenCapacityFull() throws Exception {
+    @DisplayName("정원이 차있으면 ENROLLMENT_008로 409를 반환하고 count는 변하지 않는다")
+    void returns409_whenCapacityFull() throws Exception {
         // given
         Long courseId = saveOpenCourseWithCount(1, 1);
 
-        // when
-        MvcResult result = mockMvc.perform(post("/api/enrollments")
+        // when & then
+        mockMvc.perform(post("/api/enrollments")
                         .header("X-Member-Id", MEMBER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new EnrollmentCreateRequest(courseId))))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("WAITING"))
-                .andReturn();
-
-        // then
-        EnrollmentResponse response = objectMapper.readValue(
-                result.getResponse().getContentAsString(), EnrollmentResponse.class);
-        Enrollment saved = enrollmentRepository.findById(response.id()).orElseThrow();
-        assertThat(saved.getStatus()).isEqualTo(EnrollmentStatus.WAITING);
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ENROLLMENT_008"));
 
         CourseEnrollCount count = courseEnrollCountRepository.findById(courseId).orElseThrow();
         assertThat(count.getCount()).isEqualTo(1);

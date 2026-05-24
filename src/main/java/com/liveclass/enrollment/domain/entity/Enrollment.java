@@ -2,7 +2,6 @@ package com.liveclass.enrollment.domain.entity;
 
 import com.liveclass.common.domain.entity.BaseEntity;
 import com.liveclass.common.error.exception.BusinessException;
-import com.liveclass.common.error.exception.DomainException;
 import com.liveclass.common.error.info.EnrollmentErrorInfo;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -62,7 +61,7 @@ public class Enrollment extends BaseEntity {
             name = "active_member_id",
             insertable = false,
             updatable = false,
-            columnDefinition = "BIGINT GENERATED ALWAYS AS (CASE WHEN status IN ('WAITING','PENDING','CONFIRMED') THEN member_id END)"
+            columnDefinition = "BIGINT GENERATED ALWAYS AS (CASE WHEN status IN ('PENDING','CONFIRMED') THEN member_id END)"
     )
     private Long activeMemberId;
 
@@ -78,17 +77,6 @@ public class Enrollment extends BaseEntity {
 
     public static Enrollment createPending(Long courseId, Long memberId) {
         return new Enrollment(courseId, memberId, EnrollmentStatus.PENDING);
-    }
-
-    public static Enrollment createWaiting(Long courseId, Long memberId) {
-        return new Enrollment(courseId, memberId, EnrollmentStatus.WAITING);
-    }
-
-    public void promote() {
-        if (this.status != EnrollmentStatus.WAITING) {
-            throw new DomainException(EnrollmentErrorInfo.NOT_CONFIRMABLE_STATUS);
-        }
-        this.status = EnrollmentStatus.PENDING;
     }
 
     public void confirm(LocalDateTime now) {

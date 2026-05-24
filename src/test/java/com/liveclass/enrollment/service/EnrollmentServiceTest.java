@@ -89,25 +89,20 @@ class EnrollmentServiceTest {
     }
 
     @Test
-    @DisplayName("정원이 차있으면 WAITING 상태로 등록되고 count는 변하지 않는다")
-    void registersAsWaiting_whenCapacityFull() {
+    @DisplayName("정원이 차있으면 COURSE_CAPACITY_FULL BusinessException이 발생한다")
+    void throwsCourseCapacityFull_whenCapacityFull() {
         // given
         Course course = createOpenCourse(1);
         CourseEnrollCount count = CourseEnrollCount.createNew(COURSE_ID);
         count.tryReserve(1);
         given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
         given(courseEnrollCountRepository.findById(COURSE_ID)).willReturn(Optional.of(count));
-        given(enrollmentRepository.save(any(Enrollment.class))).willAnswer(invocation -> {
-            Enrollment e = invocation.getArgument(0);
-            ReflectionTestUtils.setField(e, "id", ENROLLMENT_ID);
-            return e;
-        });
 
-        // when
-        EnrollmentResponse response = enrollmentService.enroll(COURSE_ID, MEMBER_ID);
-
-        // then
-        assertThat(response.status()).isEqualTo(EnrollmentStatus.WAITING);
+        // when & then
+        assertThatThrownBy(() -> enrollmentService.enroll(COURSE_ID, MEMBER_ID))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorInfo())
+                .isEqualTo(EnrollmentErrorInfo.COURSE_CAPACITY_FULL);
         assertThat(count.getCount()).isEqualTo(1);
     }
 
@@ -133,7 +128,7 @@ class EnrollmentServiceTest {
         given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
         given(enrollmentRepository.existsByCourseIdAndMemberIdAndStatusIn(
                 COURSE_ID, MEMBER_ID,
-                List.of(EnrollmentStatus.WAITING, EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED)))
+                List.of(EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED)))
                 .willReturn(true);
 
         // when & then
@@ -217,10 +212,11 @@ class EnrollmentServiceTest {
         void throwsNotConfirmableStatus_whenEnrollmentIsNotPending() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createWaiting(COURSE_ID, MEMBER_ID);
+            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
+            enrollment.cancel(LocalDateTime.now(), java.time.Duration.ofDays(7));
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
 
-            // when & then
+            // when & then (CANCELLED 상태는 confirm 불가)
             assertThatThrownBy(() -> enrollmentService.confirm(enrollmentId, MEMBER_ID))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorInfo())
@@ -247,33 +243,14 @@ class EnrollmentServiceTest {
     class Cancel {
 
         @Test
-        @DisplayName("WAITING 신청을 본인이 취소하면 CANCELLED로 전이되고 count는 변경되지 않는다")
-        void cancelsWaiting_whenOwnerRequests() {
-            // given
-            Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createWaiting(COURSE_ID, MEMBER_ID);
-            given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
-
-            // when
-            EnrollmentResponse response = enrollmentService.cancel(enrollmentId, MEMBER_ID);
-
-            // then
-            assertThat(response.status()).isEqualTo(EnrollmentStatus.CANCELLED);
-            assertThat(response.cancelledAt()).isNotNull();
-            assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
-        }
-
-        @Test
-        @DisplayName("PENDING 신청을 취소하고 대기자가 없으면 count가 1 감소한다")
-        void decreasesCount_whenPendingCancelledAndNoWaiting() {
+        @DisplayName("PENDING 신청을 취소하면 count가 1 감소한다")
+        void decreasesCount_whenPendingCancelled() {
             // given
             Long enrollmentId = 10L;
             Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
             CourseEnrollCount enrollCount = CourseEnrollCount.createNew(COURSE_ID);
             enrollCount.tryReserve(30);
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
-            given(enrollmentRepository.findFirstByCourseIdAndStatusOrderByCreatedAtAsc(COURSE_ID, EnrollmentStatus.WAITING))
-                    .willReturn(Optional.empty());
             given(courseEnrollCountRepository.findById(COURSE_ID)).willReturn(Optional.of(enrollCount));
 
             // when
@@ -285,7 +262,7 @@ class EnrollmentServiceTest {
         }
 
         @Test
-        @DisplayName("CONFIRMED 신청도 7일 이내라면 취소되고 정원 정리 흐름이 동작한다")
+        @DisplayName("CONFIRMED 신청도 7일 이내라면 취소되고 정원이 1 감소한다")
         void cancelsConfirmed_whenWithinCancellationWindow() {
             // given
             Long enrollmentId = 10L;
@@ -294,8 +271,6 @@ class EnrollmentServiceTest {
             CourseEnrollCount enrollCount = CourseEnrollCount.createNew(COURSE_ID);
             enrollCount.tryReserve(30);
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
-            given(enrollmentRepository.findFirstByCourseIdAndStatusOrderByCreatedAtAsc(COURSE_ID, EnrollmentStatus.WAITING))
-                    .willReturn(Optional.empty());
             given(courseEnrollCountRepository.findById(COURSE_ID)).willReturn(Optional.of(enrollCount));
 
             // when
@@ -321,28 +296,6 @@ class EnrollmentServiceTest {
                     .extracting(e -> ((BusinessException) e).getErrorInfo())
                     .isEqualTo(EnrollmentErrorInfo.CANCELLATION_WINDOW_EXPIRED);
             assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.CONFIRMED);
-        }
-
-        @Test
-        @DisplayName("PENDING 신청을 취소하고 대기자가 있으면 가장 오래된 WAITING이 PENDING으로 승격되고 count는 유지된다")
-        void promotesOldestWaiting_whenPendingCancelledAndWaitingExists() {
-            // given
-            Long enrollmentId = 10L;
-            Enrollment cancelled = Enrollment.createPending(COURSE_ID, MEMBER_ID);
-            Enrollment oldestWaiting = Enrollment.createWaiting(COURSE_ID, 300L);
-            CourseEnrollCount enrollCount = CourseEnrollCount.createNew(COURSE_ID);
-            enrollCount.tryReserve(30);
-            given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(cancelled));
-            given(enrollmentRepository.findFirstByCourseIdAndStatusOrderByCreatedAtAsc(COURSE_ID, EnrollmentStatus.WAITING))
-                    .willReturn(Optional.of(oldestWaiting));
-
-            // when
-            enrollmentService.cancel(enrollmentId, MEMBER_ID);
-
-            // then
-            assertThat(cancelled.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
-            assertThat(oldestWaiting.getStatus()).isEqualTo(EnrollmentStatus.PENDING);
-            assertThat(enrollCount.getCount()).isEqualTo(1);
         }
 
         @Test
@@ -469,7 +422,7 @@ class EnrollmentServiceTest {
             List<MyEnrollmentResponse> myEnrollments = List.of(
                     new MyEnrollmentResponse(10L, 1L, "Spring Boot", 99_000L,
                             LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31),
-                            EnrollmentStatus.WAITING, null, null)
+                            EnrollmentStatus.PENDING, null, null)
             );
             Page<MyEnrollmentResponse> page = new PageImpl<>(myEnrollments, pageable, 1);
             given(enrollmentRepository.findMyEnrollments(MEMBER_ID, pageable)).willReturn(page);

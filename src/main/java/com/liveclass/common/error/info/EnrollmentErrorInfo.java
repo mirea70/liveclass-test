@@ -14,7 +14,8 @@ public enum EnrollmentErrorInfo implements ErrorInfo {
     NOT_ENROLLMENT_OWNER(HttpStatus.FORBIDDEN, "ENROLLMENT_004", "수강 신청의 본인만 수행할 수 있습니다."),
     NOT_CONFIRMABLE_STATUS(HttpStatus.CONFLICT, "ENROLLMENT_005", "결제 확정이 가능한 상태가 아닙니다."),
     CANCELLATION_WINDOW_EXPIRED(HttpStatus.BAD_REQUEST, "ENROLLMENT_006", "취소 가능 기간이 지났습니다."),
-    ALREADY_CANCELLED(HttpStatus.CONFLICT, "ENROLLMENT_007", "이미 취소된 수강 신청입니다.");
+    ALREADY_CANCELLED(HttpStatus.CONFLICT, "ENROLLMENT_007", "이미 취소된 수강 신청입니다."),
+    COURSE_CAPACITY_FULL(HttpStatus.CONFLICT, "ENROLLMENT_008", "정원이 가득 찼습니다. 대기 신청을 이용해 주세요.");
 
     private final HttpStatus status;
     private final String code;

@@ -14,8 +14,6 @@ import com.liveclass.enrollment.dto.response.EnrollmentResponse;
 import com.liveclass.enrollment.dto.response.MyEnrollmentResponse;
 import com.liveclass.enrollment.dto.response.StudentResponse;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -27,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -35,20 +32,19 @@ import java.util.Optional;
 public class EnrollmentService {
 
     private static final List<EnrollmentStatus> ACTIVE_STATUSES =
-            List.of(EnrollmentStatus.WAITING, EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED);
+            List.of(EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED);
     private static final Duration CANCELLATION_WINDOW = Duration.ofDays(7);
 
     private final CourseRepository courseRepository;
     private final CourseEnrollCountRepository courseEnrollCountRepository;
     private final EnrollmentRepository enrollmentRepository;
-    private final EntityManager entityManager;
 
     @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 10)
     @Transactional
     public EnrollmentResponse enroll(Long courseId, Long memberId) {
         Course course = getOpenCourse(courseId);
         validateDuplicated(courseId, memberId);
-        Enrollment enrollment = reserveOrEnqueue(course, memberId);
+        Enrollment enrollment = reserve(course, memberId);
         return EnrollmentResponse.from(saveOrThrowDuplicate(enrollment));
     }
 
@@ -66,21 +62,12 @@ public class EnrollmentService {
     public EnrollmentResponse cancel(Long enrollmentId, Long memberId) {
         Enrollment enrollment = getEnrollment(enrollmentId);
         enrollment.verifyOwner(memberId);
-        EnrollmentStatus before = enrollment.getStatus();
         enrollment.cancel(LocalDateTime.now(), CANCELLATION_WINDOW);
-        if (before != EnrollmentStatus.WAITING) {
-            promoteOrRelease(enrollment.getCourseId());
-        }
+        releaseSeat(enrollment.getCourseId());
         return EnrollmentResponse.from(enrollment);
     }
 
-    private void promoteOrRelease(Long courseId) {
-        Optional<Enrollment> oldestWaiting = enrollmentRepository
-                .findFirstByCourseIdAndStatusOrderByCreatedAtAsc(courseId, EnrollmentStatus.WAITING);
-        if (oldestWaiting.isPresent()) {
-            oldestWaiting.get().promote();
-            return;
-        }
+    private void releaseSeat(Long courseId) {
         CourseEnrollCount enrollCount = courseEnrollCountRepository.findById(courseId)
                 .orElseThrow(() -> new BusinessException(CourseErrorInfo.COURSE_NOT_FOUND));
         enrollCount.release();
@@ -117,15 +104,13 @@ public class EnrollmentService {
         }
     }
 
-    private Enrollment reserveOrEnqueue(Course course, Long memberId) {
+    private Enrollment reserve(Course course, Long memberId) {
         CourseEnrollCount enrollCount = courseEnrollCountRepository.findById(course.getId())
                 .orElseThrow(() -> new BusinessException(CourseErrorInfo.COURSE_NOT_FOUND));
-        if (enrollCount.tryReserve(course.getCapacity())) {
-            return Enrollment.createPending(course.getId(), memberId);
+        if (!enrollCount.tryReserve(course.getCapacity())) {
+            throw new BusinessException(EnrollmentErrorInfo.COURSE_CAPACITY_FULL);
         }
-
-        entityManager.lock(enrollCount, LockModeType.OPTIMISTIC);
-        return Enrollment.createWaiting(course.getId(), memberId);
+        return Enrollment.createPending(course.getId(), memberId);
     }
 
     private Enrollment saveOrThrowDuplicate(Enrollment enrollment) {

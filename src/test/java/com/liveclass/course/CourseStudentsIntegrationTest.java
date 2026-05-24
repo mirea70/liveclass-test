@@ -49,7 +49,7 @@ class CourseStudentsIntegrationTest extends IntegrationTestSupport {
         Member m2 = memberRepository.save(Member.createNew("이몽룡"));
         Member m3 = memberRepository.save(Member.createNew("성춘향"));
         enrollmentRepository.save(Enrollment.createPending(courseId, m1.getId()));
-        enrollmentRepository.save(Enrollment.createWaiting(courseId, m2.getId()));
+        enrollmentRepository.save(Enrollment.createPending(courseId, m2.getId()));
         Enrollment cancelled = Enrollment.createPending(courseId, m3.getId());
         cancelled.cancel(LocalDateTime.now(), CANCELLATION_WINDOW);
         enrollmentRepository.save(cancelled);

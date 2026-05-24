@@ -1,7 +1,6 @@
 package com.liveclass.enrollment.domain.entity;
 
 import com.liveclass.common.error.exception.BusinessException;
-import com.liveclass.common.error.exception.DomainException;
 import com.liveclass.common.error.info.EnrollmentErrorInfo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,40 +34,6 @@ class EnrollmentTest {
     }
 
     @Test
-    @DisplayName("createWaiting으로 생성하면 WAITING 상태이다")
-    void startsAsWaiting_whenCreatedAsWaiting() {
-        // when
-        Enrollment enrollment = Enrollment.createWaiting(COURSE_ID, MEMBER_ID);
-
-        // then
-        assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.WAITING);
-    }
-
-    @Test
-    @DisplayName("WAITING 상태에서 promote()를 호출하면 PENDING으로 전이된다")
-    void transitionsToPending_whenPromotedFromWaiting() {
-        // given
-        Enrollment enrollment = Enrollment.createWaiting(COURSE_ID, MEMBER_ID);
-
-        // when
-        enrollment.promote();
-
-        // then
-        assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.PENDING);
-    }
-
-    @Test
-    @DisplayName("WAITING이 아닌 상태에서 promote()를 호출하면 DomainException이 발생한다")
-    void throws_whenPromotedFromNonWaiting() {
-        // given
-        Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
-
-        // when & then
-        assertThatThrownBy(enrollment::promote)
-                .isInstanceOf(DomainException.class);
-    }
-
-    @Test
     @DisplayName("PENDING 상태에서 confirm()을 호출하면 CONFIRMED로 전이되고 confirmedAt이 설정된다")
     void transitionsToConfirmed_whenConfirmedFromPending() {
         // given
@@ -87,28 +52,14 @@ class EnrollmentTest {
     @DisplayName("PENDING이 아닌 상태에서 confirm()을 호출하면 NOT_CONFIRMABLE_STATUS BusinessException이 발생한다")
     void throws_whenConfirmedFromNonPending() {
         // given
-        Enrollment enrollment = Enrollment.createWaiting(COURSE_ID, MEMBER_ID);
+        Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
+        enrollment.confirm(LocalDateTime.of(2026, 5, 15, 10, 0));
 
-        // when & then
+        // when & then (이미 CONFIRMED)
         assertThatThrownBy(() -> enrollment.confirm(LocalDateTime.now()))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorInfo())
                 .isEqualTo(EnrollmentErrorInfo.NOT_CONFIRMABLE_STATUS);
-    }
-
-    @Test
-    @DisplayName("WAITING 상태에서 cancel()을 호출하면 CANCELLED로 전이되고 cancelledAt이 설정된다")
-    void transitionsToCancelled_whenCancelledFromWaiting() {
-        // given
-        Enrollment enrollment = Enrollment.createWaiting(COURSE_ID, MEMBER_ID);
-        LocalDateTime now = LocalDateTime.of(2026, 5, 22, 10, 0);
-
-        // when
-        enrollment.cancel(now, CANCELLATION_WINDOW);
-
-        // then
-        assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
-        assertThat(enrollment.getCancelledAt()).isEqualTo(now);
     }
 
     @Test

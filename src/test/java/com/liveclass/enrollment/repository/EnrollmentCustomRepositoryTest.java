@@ -31,14 +31,16 @@ class EnrollmentCustomRepositoryTest extends JpaTestSupport {
     private static final Duration CANCELLATION_WINDOW = Duration.ofDays(7);
 
     @Test
-    @DisplayName("활성 상태(WAITING/PENDING/CONFIRMED)만 반환하고 CANCELLED는 제외한다")
+    @DisplayName("활성 상태(PENDING/CONFIRMED)만 반환하고 CANCELLED는 제외한다")
     void returnsActiveOnly() {
         // given
         Member m1 = memberRepository.saveAndFlush(Member.createNew("홍길동"));
         Member m2 = memberRepository.saveAndFlush(Member.createNew("이몽룡"));
         Member m3 = memberRepository.saveAndFlush(Member.createNew("성춘향"));
         enrollmentRepository.saveAndFlush(Enrollment.createPending(COURSE_ID, m1.getId()));
-        enrollmentRepository.saveAndFlush(Enrollment.createWaiting(COURSE_ID, m2.getId()));
+        Enrollment confirmed = Enrollment.createPending(COURSE_ID, m2.getId());
+        confirmed.confirm(LocalDateTime.now().minusDays(1));
+        enrollmentRepository.saveAndFlush(confirmed);
         Enrollment cancelled = Enrollment.createPending(COURSE_ID, m3.getId());
         cancelled.cancel(LocalDateTime.now(), CANCELLATION_WINDOW);
         enrollmentRepository.saveAndFlush(cancelled);
