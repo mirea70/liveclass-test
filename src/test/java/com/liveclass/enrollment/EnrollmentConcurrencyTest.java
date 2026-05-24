@@ -112,7 +112,7 @@ class EnrollmentConcurrencyTest {
     }
 
     @Test
-    @DisplayName("같은 enrollment에 동시에 cancel 50건이 들어와도 최종적으로 1건만 성공한다")
+    @DisplayName("같은 enrollment에 동시에 cancel 50건이 들어와도 최종적으로 1건만 성공해 카운터가 정확히 1 감소한다")
     void cancelsExactlyOnce_whenConcurrentCancelOnSameEnrollment() throws InterruptedException {
         // given
         Long courseId = saveOpenCourseWithCapacity(30);

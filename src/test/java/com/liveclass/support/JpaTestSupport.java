@@ -5,6 +5,7 @@ import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
 import com.liveclass.member.repository.MemberRepository;
+import com.liveclass.outbox.repository.OutboxEventRepository;
 import com.liveclass.waitlist.repository.WaitlistRepository;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,4 +37,7 @@ public abstract class JpaTestSupport {
 
     @Autowired
     protected WaitlistRepository waitlistRepository;
+
+    @Autowired
+    protected OutboxEventRepository outboxEventRepository;
 }

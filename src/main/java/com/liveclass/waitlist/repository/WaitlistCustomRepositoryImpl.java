@@ -19,4 +19,14 @@ public class WaitlistCustomRepositoryImpl implements WaitlistCustomRepository {
                 .fetchOne();
         return max == null ? 0 : max;
     }
+
+    @Override
+    public void shiftOrderNumDownAfter(Long courseId, int deletedOrderNum) {
+        queryFactory
+                .update(waitlist)
+                .set(waitlist.orderNum, waitlist.orderNum.subtract(1))
+                .where(waitlist.courseId.eq(courseId)
+                        .and(waitlist.orderNum.gt(deletedOrderNum)))
+                .execute();
+    }
 }

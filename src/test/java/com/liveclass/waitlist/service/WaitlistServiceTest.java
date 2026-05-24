@@ -12,6 +12,7 @@ import com.liveclass.waitlist.domain.entity.Waitlist;
 import com.liveclass.waitlist.dto.response.WaitlistResponse;
 import com.liveclass.waitlist.repository.WaitlistRepository;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -174,6 +175,58 @@ class WaitlistServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorInfo())
                 .isEqualTo(WaitlistErrorInfo.DUPLICATE_WAITLIST);
+    }
+
+    @Nested
+    @DisplayName("대기 취소 (cancel)")
+    class Cancel {
+
+        @Test
+        @DisplayName("본인이 대기를 취소하면 waitlist가 삭제되고 뒷사람들의 order_num이 한 칸씩 당겨진다")
+        void deletesAndShiftsOrderNum_whenOwnerCancels() {
+            // given
+            Long waitlistId = 55L;
+            Waitlist waitlist = Waitlist.createNew(COURSE_ID, MEMBER_ID, 3);
+            ReflectionTestUtils.setField(waitlist, "id", waitlistId);
+            given(waitlistRepository.findById(waitlistId)).willReturn(Optional.of(waitlist));
+
+            // when
+            waitlistService.cancel(waitlistId, MEMBER_ID);
+
+            // then
+            org.mockito.Mockito.verify(waitlistRepository).delete(waitlist);
+            org.mockito.Mockito.verify(waitlistRepository).shiftOrderNumDownAfter(COURSE_ID, 3);
+        }
+
+        @Test
+        @DisplayName("대기 신청이 존재하지 않으면 WAITLIST_NOT_FOUND BusinessException이 발생한다")
+        void throwsWaitlistNotFound_whenNotFound() {
+            // given
+            Long waitlistId = 9999L;
+            given(waitlistRepository.findById(waitlistId)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> waitlistService.cancel(waitlistId, MEMBER_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorInfo())
+                    .isEqualTo(WaitlistErrorInfo.WAITLIST_NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("본인이 아니면 NOT_WAITLIST_OWNER BusinessException이 발생한다")
+        void throwsNotWaitlistOwner_whenNotOwner() {
+            // given
+            Long waitlistId = 55L;
+            Long otherMemberId = 999L;
+            Waitlist waitlist = Waitlist.createNew(COURSE_ID, MEMBER_ID, 1);
+            given(waitlistRepository.findById(waitlistId)).willReturn(Optional.of(waitlist));
+
+            // when & then
+            assertThatThrownBy(() -> waitlistService.cancel(waitlistId, otherMemberId))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorInfo())
+                    .isEqualTo(WaitlistErrorInfo.NOT_WAITLIST_OWNER);
+        }
     }
 
     private Course createDraftCourse() {

@@ -14,6 +14,9 @@ import com.liveclass.enrollment.dto.response.EnrollmentResponse;
 import com.liveclass.enrollment.dto.response.MyEnrollmentResponse;
 import com.liveclass.enrollment.dto.response.StudentResponse;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
+import com.liveclass.outbox.domain.entity.OutboxEvent;
+import com.liveclass.outbox.domain.entity.OutboxEventType;
+import com.liveclass.outbox.repository.OutboxEventRepository;
 import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -38,6 +41,7 @@ public class EnrollmentService {
     private final CourseRepository courseRepository;
     private final CourseEnrollCountRepository courseEnrollCountRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final OutboxEventRepository outboxEventRepository;
 
     @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 10)
     @Transactional
@@ -63,7 +67,12 @@ public class EnrollmentService {
         Enrollment enrollment = getEnrollment(enrollmentId);
         enrollment.verifyOwner(memberId);
         enrollment.cancel(LocalDateTime.now(), CANCELLATION_WINDOW);
+
         releaseSeat(enrollment.getCourseId());
+
+        outboxEventRepository.save(
+                OutboxEvent.of(OutboxEventType.ENROLLMENT_CANCELLED, enrollment.getCourseId())
+        );
         return EnrollmentResponse.from(enrollment);
     }
 

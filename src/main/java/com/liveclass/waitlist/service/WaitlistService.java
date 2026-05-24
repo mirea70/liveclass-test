@@ -65,4 +65,15 @@ public class WaitlistService {
             throw new BusinessException(WaitlistErrorInfo.DUPLICATE_WAITLIST);
         }
     }
+
+    @Transactional
+    public void cancel(Long waitlistId, Long memberId) {
+        Waitlist waitlist = waitlistRepository.findById(waitlistId)
+                .orElseThrow(() -> new BusinessException(WaitlistErrorInfo.WAITLIST_NOT_FOUND));
+        waitlist.verifyOwner(memberId);
+        Long courseId = waitlist.getCourseId();
+        int deletedOrderNum = waitlist.getOrderNum();
+        waitlistRepository.delete(waitlist);
+        waitlistRepository.shiftOrderNumDownAfter(courseId, deletedOrderNum);
+    }
 }

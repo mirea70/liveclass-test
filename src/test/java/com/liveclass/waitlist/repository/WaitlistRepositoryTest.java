@@ -130,4 +130,40 @@ class WaitlistRepositoryTest extends JpaTestSupport {
         // then
         assertThat(max).isEqualTo(1);
     }
+
+    @Test
+    @DisplayName("shiftOrderNumDownAfter는 삭제된 자리보다 큰 order_num을 모두 -1로 갱신한다")
+    void shiftsOrderNumDown_whenCalled() {
+        // given: 1번, 3번, 4번 (2번은 이미 삭제된 상황을 가정)
+        waitlistRepository.saveAndFlush(Waitlist.createNew(COURSE_ID, 100L, 1));
+        Waitlist w3 = waitlistRepository.saveAndFlush(Waitlist.createNew(COURSE_ID, 102L, 3));
+        Waitlist w4 = waitlistRepository.saveAndFlush(Waitlist.createNew(COURSE_ID, 103L, 4));
+        entityManager.clear();
+
+        // when (2번이 삭제됐다고 가정)
+        waitlistRepository.shiftOrderNumDownAfter(COURSE_ID, 2);
+        entityManager.clear();
+
+        // then: 1은 그대로, 3·4는 각각 2·3으로
+        assertThat(waitlistRepository.findById(w3.getId()).orElseThrow().getOrderNum()).isEqualTo(2);
+        assertThat(waitlistRepository.findById(w4.getId()).orElseThrow().getOrderNum()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("shiftOrderNumDownAfter는 다른 강의의 order_num에 영향을 주지 않는다")
+    void doesNotAffectOtherCourse_whenShifting() {
+        // given
+        waitlistRepository.saveAndFlush(Waitlist.createNew(COURSE_ID, 100L, 1));
+        Waitlist otherCourseWaitlist = waitlistRepository.saveAndFlush(
+                Waitlist.createNew(OTHER_COURSE_ID, 200L, 5));
+        entityManager.clear();
+
+        // when
+        waitlistRepository.shiftOrderNumDownAfter(COURSE_ID, 0);
+        entityManager.clear();
+
+        // then
+        assertThat(waitlistRepository.findById(otherCourseWaitlist.getId()).orElseThrow().getOrderNum())
+                .isEqualTo(5);
+    }
 }

@@ -7,6 +7,9 @@ import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.domain.entity.Enrollment;
 import com.liveclass.enrollment.domain.entity.EnrollmentStatus;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
+import com.liveclass.outbox.domain.entity.OutboxEventStatus;
+import com.liveclass.outbox.domain.entity.OutboxEventType;
+import com.liveclass.outbox.repository.OutboxEventRepository;
 import com.liveclass.support.IntegrationTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,9 +41,12 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
     @Autowired
     private EnrollmentRepository enrollmentRepository;
 
+    @Autowired
+    private OutboxEventRepository outboxEventRepository;
+
     @Test
-    @DisplayName("PENDING 신청을 취소하면 count가 1 감소한다")
-    void decreasesCount_whenPendingCancelled() throws Exception {
+    @DisplayName("PENDING 신청을 취소하면 카운터가 즉시 1 감소하고 ENROLLMENT_CANCELLED outbox 이벤트가 발행된다")
+    void releasesSeatAndPublishesEvent_whenPendingCancelled() throws Exception {
         // given
         Long courseId = saveOpenCourseWithCount(30, 1);
         Enrollment pending = enrollmentRepository.save(Enrollment.createPending(courseId, MEMBER_ID));
@@ -48,9 +54,21 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", pending.getId())
                         .header("X-Member-Id", MEMBER_ID))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
 
+        // 카운터는 즉시 release되어 자리 가용성이 즉시 일관성 있게 반영된다
         assertThat(courseEnrollCountRepository.findById(courseId).orElseThrow().getCount()).isZero();
+
+        // 대기자 승격은 비동기 처리 → ENROLLMENT_CANCELLED 이벤트가 PENDING 상태로 발행됨
+        assertThat(outboxEventRepository.findAll())
+                .singleElement()
+                .satisfies(event -> {
+                    assertThat(event.getType()).isEqualTo(OutboxEventType.ENROLLMENT_CANCELLED);
+                    assertThat(event.getDomainId()).isEqualTo(courseId);
+                    assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
+                    assertThat(event.getRetryCount()).isZero();
+                });
     }
 
     @Test

@@ -14,11 +14,14 @@ import com.liveclass.enrollment.dto.response.EnrollmentResponse;
 import com.liveclass.enrollment.dto.response.MyEnrollmentResponse;
 import com.liveclass.enrollment.dto.response.StudentResponse;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
-import jakarta.persistence.EntityManager;
+import com.liveclass.outbox.domain.entity.OutboxEvent;
+import com.liveclass.outbox.domain.entity.OutboxEventType;
+import com.liveclass.outbox.repository.OutboxEventRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -38,6 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @DisplayName("EnrollmentService 단위 테스트")
 @ExtendWith(MockitoExtension.class)
@@ -61,7 +65,7 @@ class EnrollmentServiceTest {
     private EnrollmentRepository enrollmentRepository;
 
     @Mock
-    private EntityManager entityManager;
+    private OutboxEventRepository outboxEventRepository;
 
     @Test
     @DisplayName("정원이 남아있으면 PENDING 상태로 등록되고 count가 +1된다")
@@ -243,8 +247,8 @@ class EnrollmentServiceTest {
     class Cancel {
 
         @Test
-        @DisplayName("PENDING 신청을 취소하면 count가 1 감소한다")
-        void decreasesCount_whenPendingCancelled() {
+        @DisplayName("PENDING 신청을 취소하면 카운터가 즉시 1 감소하고 수강신청 취소 이벤트가 발행된다")
+        void releasesSeatAndPublishesEvent_whenPendingCancelled() {
             // given
             Long enrollmentId = 10L;
             Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
@@ -259,11 +263,16 @@ class EnrollmentServiceTest {
             // then
             assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
             assertThat(enrollCount.getCount()).isZero();
+            ArgumentCaptor<OutboxEvent> captor =
+                    org.mockito.ArgumentCaptor.forClass(OutboxEvent.class);
+            verify(outboxEventRepository).save(captor.capture());
+            assertThat(captor.getValue().getType()).isEqualTo(OutboxEventType.ENROLLMENT_CANCELLED);
+            assertThat(captor.getValue().getDomainId()).isEqualTo(COURSE_ID);
         }
 
         @Test
-        @DisplayName("CONFIRMED 신청도 7일 이내라면 취소되고 정원이 1 감소한다")
-        void cancelsConfirmed_whenWithinCancellationWindow() {
+        @DisplayName("CONFIRMED 신청도 7일 이내라면 취소되고 카운터가 1 감소하며 outbox 이벤트가 발행된다")
+        void cancelsConfirmedAndPublishesEvent_whenWithinCancellationWindow() {
             // given
             Long enrollmentId = 10L;
             Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
@@ -279,6 +288,8 @@ class EnrollmentServiceTest {
             // then
             assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
             assertThat(enrollCount.getCount()).isZero();
+            verify(outboxEventRepository).save(
+                    org.mockito.ArgumentMatchers.any(OutboxEvent.class));
         }
 
         @Test

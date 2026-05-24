@@ -11,6 +11,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -127,5 +129,42 @@ class WaitlistControllerTest extends ControllerTestSupport {
                         .content(objectMapper.writeValueAsString(new WaitlistCreateRequest(COURSE_ID))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("WAITLIST_003"));
+    }
+
+    @Test
+    @DisplayName("본인이 대기를 취소하면 204 No Content를 반환한다")
+    void returns204_whenCancelSucceeds() throws Exception {
+        // when & then
+        mockMvc.perform(delete("/api/waitlists/{waitlistId}", WAITLIST_ID)
+                        .header("X-Member-Id", MEMBER_ID))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("대기 신청이 존재하지 않으면 WAITLIST_001로 404를 반환한다")
+    void returns404_whenWaitlistNotFound() throws Exception {
+        // given
+        willThrow(new BusinessException(WaitlistErrorInfo.WAITLIST_NOT_FOUND))
+                .given(waitlistService).cancel(WAITLIST_ID, MEMBER_ID);
+
+        // when & then
+        mockMvc.perform(delete("/api/waitlists/{waitlistId}", WAITLIST_ID)
+                        .header("X-Member-Id", MEMBER_ID))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("WAITLIST_001"));
+    }
+
+    @Test
+    @DisplayName("본인이 아니면 WAITLIST_002로 403을 반환한다")
+    void returns403_whenNotOwner() throws Exception {
+        // given
+        willThrow(new BusinessException(WaitlistErrorInfo.NOT_WAITLIST_OWNER))
+                .given(waitlistService).cancel(WAITLIST_ID, MEMBER_ID);
+
+        // when & then
+        mockMvc.perform(delete("/api/waitlists/{waitlistId}", WAITLIST_ID)
+                        .header("X-Member-Id", MEMBER_ID))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("WAITLIST_002"));
     }
 }
