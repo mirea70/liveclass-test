@@ -37,7 +37,7 @@ public class EnrollmentCustomRepositoryImpl implements EnrollmentCustomRepositor
                 .from(enrollment)
                 .innerJoin(member).on(member.id.eq(enrollment.memberId))
                 .where(enrollment.courseId.eq(courseId), enrollment.status.in(ACTIVE_STATUSES))
-                .orderBy(enrollment.createdAt.desc())
+                .orderBy(enrollment.createdAt.desc(), enrollment.id.desc())
                 .fetch();
     }
 
@@ -58,7 +58,7 @@ public class EnrollmentCustomRepositoryImpl implements EnrollmentCustomRepositor
                 .from(enrollment)
                 .innerJoin(course).on(course.id.eq(enrollment.courseId))
                 .where(enrollment.memberId.eq(memberId))
-                .orderBy(enrollment.createdAt.desc())
+                .orderBy(enrollment.createdAt.desc(), enrollment.id.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();
