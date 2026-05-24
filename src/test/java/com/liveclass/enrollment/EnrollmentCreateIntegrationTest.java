@@ -1,9 +1,7 @@
 package com.liveclass.enrollment;
 
-import com.liveclass.common.domain.vo.Money;
 import com.liveclass.course.domain.entity.Course;
 import com.liveclass.course.domain.entity.CourseEnrollCount;
-import com.liveclass.course.domain.vo.CoursePeriod;
 import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.domain.entity.Enrollment;
@@ -11,7 +9,12 @@ import com.liveclass.enrollment.domain.entity.EnrollmentStatus;
 import com.liveclass.enrollment.dto.request.EnrollmentCreateRequest;
 import com.liveclass.enrollment.dto.response.EnrollmentResponse;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
+import com.liveclass.reservation.domain.entity.CourseReservation;
+import com.liveclass.reservation.repository.CourseReservationRepository;
 import com.liveclass.support.IntegrationTestSupport;
+import com.liveclass.waitlist.repository.WaitlistRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,9 +25,7 @@ import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @DisplayName("수강 신청 통합 테스트")
 class EnrollmentCreateIntegrationTest extends IntegrationTestSupport {
@@ -40,6 +41,15 @@ class EnrollmentCreateIntegrationTest extends IntegrationTestSupport {
 
     @Autowired
     private EnrollmentRepository enrollmentRepository;
+
+    @Autowired
+    private WaitlistRepository waitlistRepository;
+
+    @Autowired
+    private CourseReservationRepository courseReservationRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Test
     @DisplayName("OPEN 강의에 정원이 남아있으면 201과 PENDING 응답을 반환하고 enrollment가 저장되며 count가 +1된다")
@@ -140,6 +150,29 @@ class EnrollmentCreateIntegrationTest extends IntegrationTestSupport {
                         .content(objectMapper.writeValueAsString(new EnrollmentCreateRequest(courseId))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ENROLLMENT_002"));
+        // DataIntegrityViolationException으로 marked-for-rollback된 영속 컨텍스트를 정리 (이후 검증 가능 상태로)
+        entityManager.clear();
+    }
+
+    @Test
+    @DisplayName("이미 대기 신청한 강의에 수강신청하면 DUPLICATE_ENROLLMENT로 409 에러를 반환하고 enrollment는 저장되지 않는다")
+    void returns409_whenAlreadyInWaitlist() throws Exception {
+        // given: 정원에 자리가 있더라도, 이미 대기(reservation row 존재)에 등록된 사용자는 수강신청 불가
+        Long courseId = saveOpenCourseWithCount(30, 0);
+        waitlistRepository.save(com.liveclass.waitlist.domain.entity.Waitlist.createNew(courseId, MEMBER_ID, 1));
+        courseReservationRepository.save(CourseReservation.createNew(courseId, MEMBER_ID));
+        long beforeEnrollmentCount = enrollmentRepository.count();
+
+        // when & then
+        mockMvc.perform(post("/api/enrollments")
+                        .header("X-Member-Id", MEMBER_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new EnrollmentCreateRequest(courseId))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ENROLLMENT_002"));
+        entityManager.clear();
+
+        assertThat(enrollmentRepository.count()).isEqualTo(beforeEnrollmentCount);
     }
 
     private Long saveDraftCourseWithCount(int capacity) {

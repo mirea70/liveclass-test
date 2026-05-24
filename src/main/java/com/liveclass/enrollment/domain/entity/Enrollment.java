@@ -12,7 +12,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -28,11 +27,7 @@ import java.time.LocalDateTime;
         indexes = {
                 @Index(name = "idx_enrollment_member_status", columnList = "member_id, status"),
                 @Index(name = "idx_enrollment_course_status_created", columnList = "course_id, status, created_at")
-        },
-        uniqueConstraints = @UniqueConstraint(
-                name = "uk_enrollment_active",
-                columnNames = {"course_id", "active_member_id"}
-        )
+        }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Enrollment extends BaseEntity {
@@ -57,14 +52,6 @@ public class Enrollment extends BaseEntity {
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
-    @Column(
-            name = "active_member_id",
-            insertable = false,
-            updatable = false,
-            columnDefinition = "BIGINT GENERATED ALWAYS AS (CASE WHEN status IN ('PENDING','CONFIRMED') THEN member_id END)"
-    )
-    private Long activeMemberId;
-
     @Version
     @Column(nullable = false)
     private Long version;
@@ -75,7 +62,7 @@ public class Enrollment extends BaseEntity {
         this.status = status;
     }
 
-    public static Enrollment createPending(Long courseId, Long memberId) {
+    public static Enrollment createNew(Long courseId, Long memberId) {
         return new Enrollment(courseId, memberId, EnrollmentStatus.PENDING);
     }
 

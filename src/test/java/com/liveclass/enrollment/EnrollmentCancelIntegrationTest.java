@@ -49,7 +49,7 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
     void releasesSeatAndPublishesEvent_whenPendingCancelled() throws Exception {
         // given
         Long courseId = saveOpenCourseWithCount(30, 1);
-        Enrollment pending = enrollmentRepository.save(Enrollment.createPending(courseId, MEMBER_ID));
+        Enrollment pending = enrollmentRepository.save(Enrollment.createNew(courseId, MEMBER_ID));
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", pending.getId())
@@ -76,7 +76,7 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
     void cancelsConfirmed_whenWithinWindow() throws Exception {
         // given
         Long courseId = saveOpenCourseWithCount(30, 1);
-        Enrollment enrollment = Enrollment.createPending(courseId, MEMBER_ID);
+        Enrollment enrollment = Enrollment.createNew(courseId, MEMBER_ID);
         enrollment.confirm(LocalDateTime.now().minusDays(3));
         Enrollment saved = enrollmentRepository.save(enrollment);
 
@@ -92,7 +92,7 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
     void returns400_whenCancellationWindowExpired() throws Exception {
         // given
         Long courseId = saveOpenCourseWithCount(30, 1);
-        Enrollment enrollment = Enrollment.createPending(courseId, MEMBER_ID);
+        Enrollment enrollment = Enrollment.createNew(courseId, MEMBER_ID);
         enrollment.confirm(LocalDateTime.now().minusDays(8));
         Enrollment saved = enrollmentRepository.save(enrollment);
 
@@ -108,7 +108,7 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
     void returns403_whenNotOwner() throws Exception {
         // given
         Long courseId = saveOpenCourseWithCount(30, 1);
-        Enrollment enrollment = enrollmentRepository.save(Enrollment.createPending(courseId, MEMBER_ID));
+        Enrollment enrollment = enrollmentRepository.save(Enrollment.createNew(courseId, MEMBER_ID));
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/cancellation", enrollment.getId())
@@ -122,7 +122,7 @@ class EnrollmentCancelIntegrationTest extends IntegrationTestSupport {
     void returns409_whenAlreadyCancelled() throws Exception {
         // given
         Long courseId = saveOpenCourseWithCount(30, 0);
-        Enrollment enrollment = Enrollment.createPending(courseId, MEMBER_ID);
+        Enrollment enrollment = Enrollment.createNew(courseId, MEMBER_ID);
         enrollment.cancel(LocalDateTime.now(), CANCELLATION_WINDOW);
         Enrollment saved = enrollmentRepository.save(enrollment);
 

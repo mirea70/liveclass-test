@@ -6,10 +6,14 @@ import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.domain.entity.Enrollment;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
+import com.liveclass.reservation.domain.entity.CourseReservation;
+import com.liveclass.reservation.repository.CourseReservationRepository;
 import com.liveclass.support.IntegrationTestSupport;
 import com.liveclass.waitlist.domain.entity.Waitlist;
 import com.liveclass.waitlist.dto.request.WaitlistCreateRequest;
 import com.liveclass.waitlist.repository.WaitlistRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +44,12 @@ class WaitlistRegisterIntegrationTest extends IntegrationTestSupport {
 
     @Autowired
     private WaitlistRepository waitlistRepository;
+
+    @Autowired
+    private CourseReservationRepository courseReservationRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Test
     @DisplayName("OPEN 강의의 대기열에 등록하면 201과 order_num=1 응답을 반환하고 waitlist row가 생성된다")
@@ -94,27 +104,12 @@ class WaitlistRegisterIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("같은 사용자가 동일 강의에 활성 enrollment를 가지고 있으면 ENROLLMENT_002로 409를 반환한다")
+    @DisplayName("같은 사용자가 동일 강의에 활성 enrollment를 가지고 있으면 WAITLIST_003 코드로 409 에러를 반환한다")
     void returns409_whenActiveEnrollmentExists() throws Exception {
-        // given
+        // given: enrollment 활성 상태는 course_reservation row의 존재로 표현됨
         Long courseId = saveOpenCourseWithCount(1, 1);
-        enrollmentRepository.save(Enrollment.createPending(courseId, MEMBER_ID));
-
-        // when & then
-        mockMvc.perform(post("/api/waitlists")
-                        .header("X-Member-Id", MEMBER_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new WaitlistCreateRequest(courseId))))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("ENROLLMENT_002"));
-    }
-
-    @Test
-    @DisplayName("같은 사용자가 이미 대기열에 있으면 WAITLIST_003으로 409를 반환한다")
-    void returns409_whenAlreadyInWaitlist() throws Exception {
-        // given
-        Long courseId = saveOpenCourseWithCount(1, 1);
-        waitlistRepository.save(Waitlist.createNew(courseId, MEMBER_ID, 1));
+        enrollmentRepository.save(Enrollment.createNew(courseId, MEMBER_ID));
+        courseReservationRepository.save(CourseReservation.createNew(courseId, MEMBER_ID));
 
         // when & then
         mockMvc.perform(post("/api/waitlists")
@@ -123,6 +118,26 @@ class WaitlistRegisterIntegrationTest extends IntegrationTestSupport {
                         .content(objectMapper.writeValueAsString(new WaitlistCreateRequest(courseId))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("WAITLIST_003"));
+        // DataIntegrityViolationException으로 rollback된 영속 컨텍스트를 정리
+        entityManager.clear();
+    }
+
+    @Test
+    @DisplayName("같은 사용자가 이미 대기열에 있으면 WAITLIST_003 코드로 409 에러를 반환한다")
+    void returns409_whenAlreadyInWaitlist() throws Exception {
+        // given: waitlist 존재도 course_reservation row의 존재로 표현됨
+        Long courseId = saveOpenCourseWithCount(1, 1);
+        waitlistRepository.save(Waitlist.createNew(courseId, MEMBER_ID, 1));
+        courseReservationRepository.save(CourseReservation.createNew(courseId, MEMBER_ID));
+
+        // when & then
+        mockMvc.perform(post("/api/waitlists")
+                        .header("X-Member-Id", MEMBER_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new WaitlistCreateRequest(courseId))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("WAITLIST_003"));
+        entityManager.clear();
     }
 
     @Test

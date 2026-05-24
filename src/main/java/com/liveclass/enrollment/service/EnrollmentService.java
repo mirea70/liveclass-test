@@ -8,7 +8,6 @@ import com.liveclass.course.domain.entity.CourseEnrollCount;
 import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.domain.entity.Enrollment;
-import com.liveclass.enrollment.domain.entity.EnrollmentStatus;
 import com.liveclass.common.dto.PageResponse;
 import com.liveclass.enrollment.dto.response.EnrollmentResponse;
 import com.liveclass.enrollment.dto.response.MyEnrollmentResponse;
@@ -17,6 +16,8 @@ import com.liveclass.enrollment.repository.EnrollmentRepository;
 import com.liveclass.outbox.domain.entity.OutboxEvent;
 import com.liveclass.outbox.domain.entity.OutboxEventType;
 import com.liveclass.outbox.repository.OutboxEventRepository;
+import com.liveclass.reservation.domain.entity.CourseReservation;
+import com.liveclass.reservation.repository.CourseReservationRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
@@ -36,13 +37,12 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class EnrollmentService {
 
-    private static final List<EnrollmentStatus> ACTIVE_STATUSES =
-            List.of(EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED);
     private static final Duration CANCELLATION_WINDOW = Duration.ofDays(7);
 
     private final CourseRepository courseRepository;
     private final CourseEnrollCountRepository courseEnrollCountRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final CourseReservationRepository courseReservationRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final EntityManager entityManager;
 
@@ -50,9 +50,10 @@ public class EnrollmentService {
     @Transactional
     public EnrollmentResponse enroll(Long courseId, Long memberId) {
         Course course = getOpenCourse(courseId);
-        validateDuplicated(courseId, memberId);
+
+        saveReservationOrThrowDuplicate(courseId, memberId);
         Enrollment enrollment = reserve(course, memberId);
-        return EnrollmentResponse.from(saveOrThrowDuplicate(enrollment));
+        return EnrollmentResponse.from(enrollmentRepository.save(enrollment));
     }
 
     @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 10)
@@ -72,6 +73,7 @@ public class EnrollmentService {
         enrollment.cancel(LocalDateTime.now(), CANCELLATION_WINDOW);
 
         releaseSeat(enrollment.getCourseId());
+        courseReservationRepository.deleteByCourseIdAndMemberId(enrollment.getCourseId(), memberId);
 
         outboxEventRepository.save(
                 OutboxEvent.of(OutboxEventType.ENROLLMENT_CANCELLED, enrollment.getCourseId())
@@ -107,17 +109,9 @@ public class EnrollmentService {
         if (!course.isOpen()) {
             throw new BusinessException(EnrollmentErrorInfo.COURSE_NOT_OPEN);
         }
-        // 수강신청 트랜잭션이 OPEN으로 시작했지만 commit 직전 강의가 CLOSED로 전이되는 race를 막기 위해
-        // Course의 @Version을 commit 시점에 명시적으로 검증한다. 충돌 시 @Retryable로 재시도되며,
-        // 재시도 시 latest 상태가 CLOSED라면 COURSE_NOT_OPEN으로 정상 거부된다.
+
         entityManager.lock(course, LockModeType.OPTIMISTIC);
         return course;
-    }
-
-    private void validateDuplicated(Long courseId, Long memberId) {
-        if (enrollmentRepository.existsByCourseIdAndMemberIdAndStatusIn(courseId, memberId, ACTIVE_STATUSES)) {
-            throw new BusinessException(EnrollmentErrorInfo.DUPLICATE_ENROLLMENT);
-        }
     }
 
     private Enrollment reserve(Course course, Long memberId) {
@@ -126,12 +120,12 @@ public class EnrollmentService {
         if (!enrollCount.tryReserve(course.getCapacity())) {
             throw new BusinessException(EnrollmentErrorInfo.COURSE_CAPACITY_FULL);
         }
-        return Enrollment.createPending(course.getId(), memberId);
+        return Enrollment.createNew(course.getId(), memberId);
     }
 
-    private Enrollment saveOrThrowDuplicate(Enrollment enrollment) {
+    private void saveReservationOrThrowDuplicate(Long courseId, Long memberId) {
         try {
-            return enrollmentRepository.save(enrollment);
+            courseReservationRepository.save(CourseReservation.createNew(courseId, memberId));
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(EnrollmentErrorInfo.DUPLICATE_ENROLLMENT);
         }

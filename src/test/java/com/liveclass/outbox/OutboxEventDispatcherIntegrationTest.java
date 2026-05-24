@@ -12,6 +12,7 @@ import com.liveclass.outbox.domain.entity.OutboxEventStatus;
 import com.liveclass.outbox.domain.entity.OutboxEventType;
 import com.liveclass.outbox.repository.OutboxEventRepository;
 import com.liveclass.outbox.service.OutboxEventDispatcher;
+import com.liveclass.reservation.repository.CourseReservationRepository;
 import com.liveclass.waitlist.domain.entity.Waitlist;
 import com.liveclass.waitlist.repository.WaitlistRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -52,11 +53,15 @@ class OutboxEventDispatcherIntegrationTest {
     @Autowired
     private WaitlistRepository waitlistRepository;
 
+    @Autowired
+    private CourseReservationRepository courseReservationRepository;
+
     @AfterEach
     void cleanUp() {
         outboxEventRepository.deleteAllInBatch();
         enrollmentRepository.deleteAllInBatch();
         waitlistRepository.deleteAllInBatch();
+        courseReservationRepository.deleteAllInBatch();
         courseEnrollCountRepository.deleteAllInBatch();
         courseRepository.deleteAllInBatch();
     }

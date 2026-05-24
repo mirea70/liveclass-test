@@ -11,6 +11,8 @@ import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.domain.entity.Enrollment;
 import com.liveclass.enrollment.domain.entity.EnrollmentStatus;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
+import com.liveclass.reservation.domain.entity.CourseReservation;
+import com.liveclass.reservation.repository.CourseReservationRepository;
 import com.liveclass.waitlist.domain.entity.Waitlist;
 import com.liveclass.waitlist.dto.response.MyWaitlistResponse;
 import com.liveclass.waitlist.dto.response.WaitlistResponse;
@@ -41,8 +43,6 @@ class WaitlistServiceTest {
     private static final Long COURSE_ID = 1L;
     private static final Long MEMBER_ID = 200L;
     private static final Long WAITLIST_ID = 55L;
-    private static final List<EnrollmentStatus> ACTIVE_ENROLLMENT_STATUSES =
-            List.of(EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED);
 
     @InjectMocks
     private WaitlistService waitlistService;
@@ -59,15 +59,15 @@ class WaitlistServiceTest {
     @Mock
     private WaitlistRepository waitlistRepository;
 
+    @Mock
+    private CourseReservationRepository courseReservationRepository;
+
     @Test
     @DisplayName("OPEN 강의의 대기열이 비어있으면 order_num=1로 등록된다")
     void registersAtFirstPosition_whenWaitlistIsEmpty() {
         // given
         Course course = createOpenCourse();
         given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
-        given(enrollmentRepository.existsByCourseIdAndMemberIdAndStatusIn(
-                COURSE_ID, MEMBER_ID, ACTIVE_ENROLLMENT_STATUSES)).willReturn(false);
-        given(waitlistRepository.existsByCourseIdAndMemberId(COURSE_ID, MEMBER_ID)).willReturn(false);
         given(waitlistRepository.findMaxOrderNumByCourseId(COURSE_ID)).willReturn(0);
         given(waitlistRepository.save(any(Waitlist.class))).willAnswer(invocation -> {
             Waitlist w = invocation.getArgument(0);
@@ -91,9 +91,6 @@ class WaitlistServiceTest {
         // given
         Course course = createOpenCourse();
         given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
-        given(enrollmentRepository.existsByCourseIdAndMemberIdAndStatusIn(
-                COURSE_ID, MEMBER_ID, ACTIVE_ENROLLMENT_STATUSES)).willReturn(false);
-        given(waitlistRepository.existsByCourseIdAndMemberId(COURSE_ID, MEMBER_ID)).willReturn(false);
         given(waitlistRepository.findMaxOrderNumByCourseId(COURSE_ID)).willReturn(5);
         given(waitlistRepository.save(any(Waitlist.class))).willAnswer(invocation -> invocation.getArgument(0));
 
@@ -132,30 +129,13 @@ class WaitlistServiceTest {
     }
 
     @Test
-    @DisplayName("동일 사용자의 활성 enrollment가 존재하면 DUPLICATE_ENROLLMENT BusinessException이 발생한다")
-    void throwsDuplicateEnrollment_whenActiveEnrollmentExists() {
+    @DisplayName("이미 활성 상태 수강신청/대기 데이터(reservation row 존재)이 있으면 DB unique 제약 위반으로 DUPLICATE_WAITLIST BusinessException이 발생한다")
+    void throwsDuplicateWaitlist_whenReservationConflict() {
         // given
         Course course = createOpenCourse();
         given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
-        given(enrollmentRepository.existsByCourseIdAndMemberIdAndStatusIn(
-                COURSE_ID, MEMBER_ID, ACTIVE_ENROLLMENT_STATUSES)).willReturn(true);
-
-        // when & then
-        assertThatThrownBy(() -> waitlistService.register(COURSE_ID, MEMBER_ID))
-                .isInstanceOf(BusinessException.class)
-                .extracting(e -> ((BusinessException) e).getErrorInfo())
-                .isEqualTo(EnrollmentErrorInfo.DUPLICATE_ENROLLMENT);
-    }
-
-    @Test
-    @DisplayName("동일 사용자가 이미 대기 중이면 DUPLICATE_WAITLIST BusinessException이 발생한다")
-    void throwsDuplicateWaitlist_whenAlreadyInWaitlist() {
-        // given
-        Course course = createOpenCourse();
-        given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
-        given(enrollmentRepository.existsByCourseIdAndMemberIdAndStatusIn(
-                COURSE_ID, MEMBER_ID, ACTIVE_ENROLLMENT_STATUSES)).willReturn(false);
-        given(waitlistRepository.existsByCourseIdAndMemberId(COURSE_ID, MEMBER_ID)).willReturn(true);
+        given(courseReservationRepository.save(any(CourseReservation.class)))
+                .willThrow(new DataIntegrityViolationException("uk_course_reservation"));
 
         // when & then
         assertThatThrownBy(() -> waitlistService.register(COURSE_ID, MEMBER_ID))
@@ -165,17 +145,14 @@ class WaitlistServiceTest {
     }
 
     @Test
-    @DisplayName("save 시 DataIntegrityViolationException이 발생하면 DUPLICATE_WAITLIST BusinessException으로 변환된다")
-    void throwsDuplicateWaitlist_whenSaveViolatesUniqueConstraint() {
+    @DisplayName("대기열 저장 시 DataIntegrityViolationException이 발생하면 DUPLICATE_WAITLIST BusinessException으로 변환된다")
+    void throwsDuplicateWaitlist_whenWaitlistSaveViolatesUniqueConstraint() {
         // given
         Course course = createOpenCourse();
         given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
-        given(enrollmentRepository.existsByCourseIdAndMemberIdAndStatusIn(
-                COURSE_ID, MEMBER_ID, ACTIVE_ENROLLMENT_STATUSES)).willReturn(false);
-        given(waitlistRepository.existsByCourseIdAndMemberId(COURSE_ID, MEMBER_ID)).willReturn(false);
         given(waitlistRepository.findMaxOrderNumByCourseId(COURSE_ID)).willReturn(0);
         given(waitlistRepository.save(any(Waitlist.class)))
-                .willThrow(new DataIntegrityViolationException("unique constraint"));
+                .willThrow(new DataIntegrityViolationException("uk_waitlist_course_order"));
 
         // when & then
         assertThatThrownBy(() -> waitlistService.register(COURSE_ID, MEMBER_ID))

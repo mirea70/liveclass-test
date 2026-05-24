@@ -41,9 +41,9 @@ class MyEnrollmentsIntegrationTest extends IntegrationTestSupport {
         // given
         Long courseA = saveOpenCourse("강의 A", 10_000L);
         Long courseB = saveOpenCourse("강의 B", 20_000L);
-        enrollmentRepository.save(Enrollment.createPending(courseA, MEMBER_ID));
-        enrollmentRepository.save(Enrollment.createPending(courseB, MEMBER_ID));
-        enrollmentRepository.save(Enrollment.createPending(courseA, OTHER_MEMBER_ID));
+        enrollmentRepository.save(Enrollment.createNew(courseA, MEMBER_ID));
+        enrollmentRepository.save(Enrollment.createNew(courseB, MEMBER_ID));
+        enrollmentRepository.save(Enrollment.createNew(courseA, OTHER_MEMBER_ID));
 
         // when & then
         mockMvc.perform(get("/api/enrollments/me")
@@ -59,7 +59,7 @@ class MyEnrollmentsIntegrationTest extends IntegrationTestSupport {
         // given
         for (int i = 0; i < 5; i++) {
             Long courseId = saveOpenCourse("강의 " + i, 10_000L);
-            enrollmentRepository.save(Enrollment.createPending(courseId, MEMBER_ID));
+            enrollmentRepository.save(Enrollment.createNew(courseId, MEMBER_ID));
         }
 
         // when & then

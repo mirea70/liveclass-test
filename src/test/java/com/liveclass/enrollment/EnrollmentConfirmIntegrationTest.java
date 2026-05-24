@@ -42,7 +42,7 @@ class EnrollmentConfirmIntegrationTest extends IntegrationTestSupport {
     void confirmsPendingEnrollment_whenOwnerRequests() throws Exception {
         // given
         Long courseId = saveOpenCourse(30);
-        Enrollment enrollment = enrollmentRepository.save(Enrollment.createPending(courseId, MEMBER_ID));
+        Enrollment enrollment = enrollmentRepository.save(Enrollment.createNew(courseId, MEMBER_ID));
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", enrollment.getId())
@@ -62,7 +62,7 @@ class EnrollmentConfirmIntegrationTest extends IntegrationTestSupport {
     void returns403_whenNotOwner() throws Exception {
         // given
         Long courseId = saveOpenCourse(30);
-        Enrollment enrollment = enrollmentRepository.save(Enrollment.createPending(courseId, MEMBER_ID));
+        Enrollment enrollment = enrollmentRepository.save(Enrollment.createNew(courseId, MEMBER_ID));
 
         // when & then
         mockMvc.perform(post("/api/enrollments/{enrollmentId}/confirmation", enrollment.getId())
@@ -79,7 +79,7 @@ class EnrollmentConfirmIntegrationTest extends IntegrationTestSupport {
     void returns409_whenAlreadyConfirmed() throws Exception {
         // given
         Long courseId = saveOpenCourse(30);
-        Enrollment enrollment = Enrollment.createPending(courseId, MEMBER_ID);
+        Enrollment enrollment = Enrollment.createNew(courseId, MEMBER_ID);
         enrollment.confirm(java.time.LocalDateTime.now().minusDays(1));
         Enrollment saved = enrollmentRepository.save(enrollment);
 

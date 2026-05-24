@@ -37,11 +37,11 @@ class EnrollmentCustomRepositoryTest extends JpaTestSupport {
         Member m1 = memberRepository.saveAndFlush(Member.createNew("홍길동"));
         Member m2 = memberRepository.saveAndFlush(Member.createNew("이몽룡"));
         Member m3 = memberRepository.saveAndFlush(Member.createNew("성춘향"));
-        enrollmentRepository.saveAndFlush(Enrollment.createPending(COURSE_ID, m1.getId()));
-        Enrollment confirmed = Enrollment.createPending(COURSE_ID, m2.getId());
+        enrollmentRepository.saveAndFlush(Enrollment.createNew(COURSE_ID, m1.getId()));
+        Enrollment confirmed = Enrollment.createNew(COURSE_ID, m2.getId());
         confirmed.confirm(LocalDateTime.now().minusDays(1));
         enrollmentRepository.saveAndFlush(confirmed);
-        Enrollment cancelled = Enrollment.createPending(COURSE_ID, m3.getId());
+        Enrollment cancelled = Enrollment.createNew(COURSE_ID, m3.getId());
         cancelled.cancel(LocalDateTime.now(), CANCELLATION_WINDOW);
         enrollmentRepository.saveAndFlush(cancelled);
         entityManager.clear();
@@ -59,8 +59,8 @@ class EnrollmentCustomRepositoryTest extends JpaTestSupport {
     void doesNotIncludeOtherCourseEnrollments() {
         // given
         Member m1 = memberRepository.saveAndFlush(Member.createNew("홍길동"));
-        enrollmentRepository.saveAndFlush(Enrollment.createPending(COURSE_ID, m1.getId()));
-        enrollmentRepository.saveAndFlush(Enrollment.createPending(OTHER_COURSE_ID, m1.getId()));
+        enrollmentRepository.saveAndFlush(Enrollment.createNew(COURSE_ID, m1.getId()));
+        enrollmentRepository.saveAndFlush(Enrollment.createNew(OTHER_COURSE_ID, m1.getId()));
         entityManager.clear();
 
         // when
@@ -76,10 +76,10 @@ class EnrollmentCustomRepositoryTest extends JpaTestSupport {
         // given
         Member m1 = memberRepository.saveAndFlush(Member.createNew("홍길동"));
         Member m2 = memberRepository.saveAndFlush(Member.createNew("이몽룡"));
-        Enrollment older = enrollmentRepository.saveAndFlush(Enrollment.createPending(COURSE_ID, m1.getId()));
+        Enrollment older = enrollmentRepository.saveAndFlush(Enrollment.createNew(COURSE_ID, m1.getId()));
         ReflectionTestUtils.setField(older, "createdAt", LocalDateTime.of(2026, 1, 1, 0, 0));
         enrollmentRepository.saveAndFlush(older);
-        Enrollment newer = enrollmentRepository.saveAndFlush(Enrollment.createPending(COURSE_ID, m2.getId()));
+        Enrollment newer = enrollmentRepository.saveAndFlush(Enrollment.createNew(COURSE_ID, m2.getId()));
         ReflectionTestUtils.setField(newer, "createdAt", LocalDateTime.of(2026, 2, 1, 0, 0));
         enrollmentRepository.saveAndFlush(newer);
         entityManager.clear();
@@ -98,7 +98,7 @@ class EnrollmentCustomRepositoryTest extends JpaTestSupport {
     void populatesAllFields() {
         // given
         Member m1 = memberRepository.saveAndFlush(Member.createNew("홍길동"));
-        Enrollment enrollment = Enrollment.createPending(COURSE_ID, m1.getId());
+        Enrollment enrollment = Enrollment.createNew(COURSE_ID, m1.getId());
         LocalDateTime confirmedAt = LocalDateTime.of(2026, 5, 19, 10, 0);
         enrollment.confirm(confirmedAt);
         enrollmentRepository.saveAndFlush(enrollment);
@@ -124,8 +124,8 @@ class EnrollmentCustomRepositoryTest extends JpaTestSupport {
         Long memberId = 200L;
         Long otherMemberId = 999L;
         Long courseId = saveCourse("Spring Boot", 99_000L);
-        enrollmentRepository.saveAndFlush(Enrollment.createPending(courseId, memberId));
-        enrollmentRepository.saveAndFlush(Enrollment.createPending(courseId, otherMemberId));
+        enrollmentRepository.saveAndFlush(Enrollment.createNew(courseId, memberId));
+        enrollmentRepository.saveAndFlush(Enrollment.createNew(courseId, otherMemberId));
         entityManager.clear();
 
         // when
@@ -142,7 +142,7 @@ class EnrollmentCustomRepositoryTest extends JpaTestSupport {
         // given
         Long memberId = 200L;
         Long courseId = saveCourse("JPA 심화", 79_000L);
-        Enrollment enrollment = Enrollment.createPending(courseId, memberId);
+        Enrollment enrollment = Enrollment.createNew(courseId, memberId);
         LocalDateTime confirmedAt = LocalDateTime.of(2026, 5, 19, 10, 0);
         enrollment.confirm(confirmedAt);
         enrollmentRepository.saveAndFlush(enrollment);
@@ -170,10 +170,10 @@ class EnrollmentCustomRepositoryTest extends JpaTestSupport {
         Long memberId = 200L;
         Long courseA = saveCourse("강의 A", 10_000L);
         Long courseB = saveCourse("강의 B", 20_000L);
-        Enrollment older = enrollmentRepository.saveAndFlush(Enrollment.createPending(courseA, memberId));
+        Enrollment older = enrollmentRepository.saveAndFlush(Enrollment.createNew(courseA, memberId));
         ReflectionTestUtils.setField(older, "createdAt", LocalDateTime.of(2026, 1, 1, 0, 0));
         enrollmentRepository.saveAndFlush(older);
-        Enrollment newer = enrollmentRepository.saveAndFlush(Enrollment.createPending(courseB, memberId));
+        Enrollment newer = enrollmentRepository.saveAndFlush(Enrollment.createNew(courseB, memberId));
         ReflectionTestUtils.setField(newer, "createdAt", LocalDateTime.of(2026, 2, 1, 0, 0));
         enrollmentRepository.saveAndFlush(newer);
         entityManager.clear();
@@ -194,7 +194,7 @@ class EnrollmentCustomRepositoryTest extends JpaTestSupport {
         Long memberId = 200L;
         for (int i = 0; i < 5; i++) {
             Long courseId = saveCourse("강의 " + i, 10_000L);
-            enrollmentRepository.saveAndFlush(Enrollment.createPending(courseId, memberId));
+            enrollmentRepository.saveAndFlush(Enrollment.createNew(courseId, memberId));
         }
         entityManager.clear();
 

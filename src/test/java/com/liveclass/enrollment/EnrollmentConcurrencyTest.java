@@ -60,10 +60,14 @@ class EnrollmentConcurrencyTest {
     @PersistenceContext
     private EntityManager entityManager;
 
+    @Autowired
+    private com.liveclass.reservation.repository.CourseReservationRepository courseReservationRepository;
+
     @AfterEach
     void cleanUp() {
         enrollmentRepository.deleteAllInBatch();
         courseEnrollCountRepository.deleteAllInBatch();
+        courseReservationRepository.deleteAllInBatch();
         courseRepository.deleteAllInBatch();
     }
 
@@ -201,7 +205,7 @@ class EnrollmentConcurrencyTest {
         // given
         Long courseId = saveOpenCourseWithCapacity(30);
         Long pendingEnrollmentId = enrollmentRepository.save(
-                com.liveclass.enrollment.domain.entity.Enrollment.createPending(courseId, MEMBER_ID)).getId();
+                Enrollment.createNew(courseId, MEMBER_ID)).getId();
         com.liveclass.course.domain.entity.CourseEnrollCount counter =
                 courseEnrollCountRepository.findById(courseId).orElseThrow();
         counter.tryReserve(30);
@@ -212,7 +216,7 @@ class EnrollmentConcurrencyTest {
         runConcurrent(threadCount, () -> enrollmentService.cancel(pendingEnrollmentId, MEMBER_ID));
 
         // then
-        com.liveclass.enrollment.domain.entity.Enrollment reloaded =
+        Enrollment reloaded =
                 enrollmentRepository.findById(pendingEnrollmentId).orElseThrow();
         assertThat(reloaded.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
         assertThat(courseEnrollCountRepository.findById(courseId).orElseThrow().getCount()).isZero();

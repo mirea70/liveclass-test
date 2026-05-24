@@ -17,6 +17,8 @@ import com.liveclass.enrollment.repository.EnrollmentRepository;
 import com.liveclass.outbox.domain.entity.OutboxEvent;
 import com.liveclass.outbox.domain.entity.OutboxEventType;
 import com.liveclass.outbox.repository.OutboxEventRepository;
+import com.liveclass.reservation.domain.entity.CourseReservation;
+import com.liveclass.reservation.repository.CourseReservationRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -64,6 +66,9 @@ class EnrollmentServiceTest {
 
     @Mock
     private EnrollmentRepository enrollmentRepository;
+
+    @Mock
+    private CourseReservationRepository courseReservationRepository;
 
     @Mock
     private OutboxEventRepository outboxEventRepository;
@@ -129,33 +134,13 @@ class EnrollmentServiceTest {
     }
 
     @Test
-    @DisplayName("동일 사용자의 활성 신청이 존재하면 DUPLICATE_ENROLLMENT BusinessException이 발생한다")
-    void throwsDuplicateEnrollment_whenActiveEnrollmentExists() {
+    @DisplayName("이미 활성 상태 수강신청/대기열(reservation row 존재)이 있으면 DB Unike 제약 위반으로 DUPLICATE_ENROLLMENT BusinessException이 발생한다")
+    void throwsDuplicateEnrollment_whenReservationConflict() {
         // given
         Course course = createOpenCourse(30);
         given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
-        given(enrollmentRepository.existsByCourseIdAndMemberIdAndStatusIn(
-                COURSE_ID, MEMBER_ID,
-                List.of(EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED)))
-                .willReturn(true);
-
-        // when & then
-        assertThatThrownBy(() -> enrollmentService.enroll(COURSE_ID, MEMBER_ID))
-                .isInstanceOf(BusinessException.class)
-                .extracting(e -> ((BusinessException) e).getErrorInfo())
-                .isEqualTo(EnrollmentErrorInfo.DUPLICATE_ENROLLMENT);
-    }
-
-    @Test
-    @DisplayName("save 시 DataIntegrityViolationException이 발생하면 DUPLICATE_ENROLLMENT BusinessException으로 변환된다")
-    void throwsDuplicateEnrollment_whenSaveViolatesUniqueConstraint() {
-        // given
-        Course course = createOpenCourse(30);
-        CourseEnrollCount count = CourseEnrollCount.createNew(COURSE_ID);
-        given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
-        given(courseEnrollCountRepository.findById(COURSE_ID)).willReturn(Optional.of(count));
-        given(enrollmentRepository.save(any(Enrollment.class)))
-                .willThrow(new DataIntegrityViolationException("unique constraint"));
+        given(courseReservationRepository.save(any(CourseReservation.class)))
+                .willThrow(new DataIntegrityViolationException("uk_course_reservation"));
 
         // when & then
         assertThatThrownBy(() -> enrollmentService.enroll(COURSE_ID, MEMBER_ID))
@@ -186,7 +171,7 @@ class EnrollmentServiceTest {
         void transitionsToConfirmed_whenValidPendingRequest() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
+            Enrollment enrollment = Enrollment.createNew(COURSE_ID, MEMBER_ID);
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
 
             // when
@@ -204,7 +189,7 @@ class EnrollmentServiceTest {
         void throwsNotEnrollmentOwner_whenRequesterIsNotOwner() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
+            Enrollment enrollment = Enrollment.createNew(COURSE_ID, MEMBER_ID);
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
 
             // when & then
@@ -220,7 +205,7 @@ class EnrollmentServiceTest {
         void throwsNotConfirmableStatus_whenEnrollmentIsNotPending() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
+            Enrollment enrollment = Enrollment.createNew(COURSE_ID, MEMBER_ID);
             enrollment.cancel(LocalDateTime.now(), java.time.Duration.ofDays(7));
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
 
@@ -255,7 +240,7 @@ class EnrollmentServiceTest {
         void releasesSeatAndPublishesEvent_whenPendingCancelled() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
+            Enrollment enrollment = Enrollment.createNew(COURSE_ID, MEMBER_ID);
             CourseEnrollCount enrollCount = CourseEnrollCount.createNew(COURSE_ID);
             enrollCount.tryReserve(30);
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
@@ -279,7 +264,7 @@ class EnrollmentServiceTest {
         void cancelsConfirmedAndPublishesEvent_whenWithinCancellationWindow() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
+            Enrollment enrollment = Enrollment.createNew(COURSE_ID, MEMBER_ID);
             enrollment.confirm(LocalDateTime.now().minusDays(3));
             CourseEnrollCount enrollCount = CourseEnrollCount.createNew(COURSE_ID);
             enrollCount.tryReserve(30);
@@ -301,7 +286,7 @@ class EnrollmentServiceTest {
         void throwsCancellationWindowExpired_whenConfirmedTooLongAgo() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
+            Enrollment enrollment = Enrollment.createNew(COURSE_ID, MEMBER_ID);
             enrollment.confirm(LocalDateTime.now().minusDays(8));
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
 
@@ -318,7 +303,7 @@ class EnrollmentServiceTest {
         void throwsNotEnrollmentOwner_whenRequesterIsNotOwner() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
+            Enrollment enrollment = Enrollment.createNew(COURSE_ID, MEMBER_ID);
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
 
             // when & then
@@ -348,7 +333,7 @@ class EnrollmentServiceTest {
         void throwsAlreadyCancelled_whenAlreadyCancelled() {
             // given
             Long enrollmentId = 10L;
-            Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
+            Enrollment enrollment = Enrollment.createNew(COURSE_ID, MEMBER_ID);
             enrollment.cancel(LocalDateTime.now().minusDays(1), java.time.Duration.ofDays(7));
             given(enrollmentRepository.findById(enrollmentId)).willReturn(Optional.of(enrollment));
 

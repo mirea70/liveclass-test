@@ -29,7 +29,7 @@ class EnrollmentRepositoryTest extends JpaTestSupport {
     @DisplayName("저장 시 ID와 감사 필드가 자동 설정된다")
     void generatesIdAndAuditFields_whenSaved() {
         // when
-        Enrollment saved = enrollmentRepository.saveAndFlush(Enrollment.createPending(COURSE_ID, MEMBER_ID));
+        Enrollment saved = enrollmentRepository.saveAndFlush(Enrollment.createNew(COURSE_ID, MEMBER_ID));
 
         // then
         assertThat(saved.getId()).isNotNull();
@@ -41,7 +41,7 @@ class EnrollmentRepositoryTest extends JpaTestSupport {
     @DisplayName("PENDING 활성 신청이 존재하면 existsByCourseIdAndMemberIdAndStatusIn은 true이다")
     void returnsTrue_whenPendingExists() {
         // given
-        enrollmentRepository.saveAndFlush(Enrollment.createPending(COURSE_ID, MEMBER_ID));
+        enrollmentRepository.saveAndFlush(Enrollment.createNew(COURSE_ID, MEMBER_ID));
 
         // when
         boolean result = enrollmentRepository.existsByCourseIdAndMemberIdAndStatusIn(COURSE_ID, MEMBER_ID, ACTIVE_STATUSES);
@@ -54,7 +54,7 @@ class EnrollmentRepositoryTest extends JpaTestSupport {
     @DisplayName("CANCELLED 신청만 있으면 false이다")
     void returnsFalse_whenOnlyCancelledExists() {
         // given
-        Enrollment enrollment = Enrollment.createPending(COURSE_ID, MEMBER_ID);
+        Enrollment enrollment = Enrollment.createNew(COURSE_ID, MEMBER_ID);
         enrollment.cancel(LocalDateTime.now(), CANCELLATION_WINDOW);
         enrollmentRepository.saveAndFlush(enrollment);
 
@@ -69,7 +69,7 @@ class EnrollmentRepositoryTest extends JpaTestSupport {
     @DisplayName("다른 사용자의 활성 신청은 본인 검색에서 false이다")
     void returnsFalse_whenOtherUserEnrolled() {
         // given
-        enrollmentRepository.saveAndFlush(Enrollment.createPending(COURSE_ID, OTHER_MEMBER_ID));
+        enrollmentRepository.saveAndFlush(Enrollment.createNew(COURSE_ID, OTHER_MEMBER_ID));
 
         // when
         boolean result = enrollmentRepository.existsByCourseIdAndMemberIdAndStatusIn(COURSE_ID, MEMBER_ID, ACTIVE_STATUSES);
@@ -82,7 +82,7 @@ class EnrollmentRepositoryTest extends JpaTestSupport {
     @DisplayName("같은 사용자가 다른 강의에만 신청했으면 false이다")
     void returnsFalse_whenSameUserEnrolledOtherCourse() {
         // given
-        enrollmentRepository.saveAndFlush(Enrollment.createPending(OTHER_COURSE_ID, MEMBER_ID));
+        enrollmentRepository.saveAndFlush(Enrollment.createNew(OTHER_COURSE_ID, MEMBER_ID));
 
         // when
         boolean result = enrollmentRepository.existsByCourseIdAndMemberIdAndStatusIn(COURSE_ID, MEMBER_ID, ACTIVE_STATUSES);
@@ -91,31 +91,6 @@ class EnrollmentRepositoryTest extends JpaTestSupport {
         assertThat(result).isFalse();
     }
 
-    @Test
-    @DisplayName("동일 (course_id, member_id)로 활성 신청을 2건 저장하면 unique 제약 위반으로 예외가 발생한다")
-    void throws_whenDuplicateActiveEnrollment() {
-        // given
-        enrollmentRepository.saveAndFlush(Enrollment.createPending(COURSE_ID, MEMBER_ID));
-
-        // when & then
-        assertThatThrownBy(() ->
-                enrollmentRepository.saveAndFlush(Enrollment.createPending(COURSE_ID, MEMBER_ID))
-        ).isInstanceOf(DataIntegrityViolationException.class);
-    }
-
-    @Test
-    @DisplayName("기존 신청을 CANCELLED로 변경한 뒤에는 동일 (course_id, member_id)로 재신청이 가능하다")
-    void allowsReenrollment_whenPreviousCancelled() {
-        // given
-        Enrollment first = enrollmentRepository.saveAndFlush(Enrollment.createPending(COURSE_ID, MEMBER_ID));
-        first.cancel(LocalDateTime.now(), CANCELLATION_WINDOW);
-        enrollmentRepository.saveAndFlush(first);
-
-        // when
-        Enrollment second = enrollmentRepository.saveAndFlush(Enrollment.createPending(COURSE_ID, MEMBER_ID));
-
-        // then
-        assertThat(second.getId()).isNotNull();
-        assertThat(second.getId()).isNotEqualTo(first.getId());
-    }
+    // 활성 등록 중복 차단은 enrollment 자체가 아니라 course_reservation의 unique로 이관됨.
+    // (관련 검증은 CourseReservationRepositoryTest 참고)
 }
