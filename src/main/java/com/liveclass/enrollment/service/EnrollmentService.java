@@ -17,6 +17,8 @@ import com.liveclass.enrollment.repository.EnrollmentRepository;
 import com.liveclass.outbox.domain.entity.OutboxEvent;
 import com.liveclass.outbox.domain.entity.OutboxEventType;
 import com.liveclass.outbox.repository.OutboxEventRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -42,6 +44,7 @@ public class EnrollmentService {
     private final CourseEnrollCountRepository courseEnrollCountRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final OutboxEventRepository outboxEventRepository;
+    private final EntityManager entityManager;
 
     @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 10)
     @Transactional
@@ -104,6 +107,10 @@ public class EnrollmentService {
         if (!course.isOpen()) {
             throw new BusinessException(EnrollmentErrorInfo.COURSE_NOT_OPEN);
         }
+        // 수강신청 트랜잭션이 OPEN으로 시작했지만 commit 직전 강의가 CLOSED로 전이되는 race를 막기 위해
+        // Course의 @Version을 commit 시점에 명시적으로 검증한다. 충돌 시 @Retryable로 재시도되며,
+        // 재시도 시 latest 상태가 CLOSED라면 COURSE_NOT_OPEN으로 정상 거부된다.
+        entityManager.lock(course, LockModeType.OPTIMISTIC);
         return course;
     }
 

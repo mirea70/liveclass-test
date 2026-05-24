@@ -17,6 +17,7 @@ import com.liveclass.enrollment.repository.EnrollmentRepository;
 import com.liveclass.outbox.domain.entity.OutboxEvent;
 import com.liveclass.outbox.domain.entity.OutboxEventType;
 import com.liveclass.outbox.repository.OutboxEventRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -66,6 +67,9 @@ class EnrollmentServiceTest {
 
     @Mock
     private OutboxEventRepository outboxEventRepository;
+
+    @Mock
+    private EntityManager entityManager;
 
     @Test
     @DisplayName("정원이 남아있으면 PENDING 상태로 등록되고 count가 +1된다")
