@@ -56,9 +56,13 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+
+    doLast {
+        println("\n===== Test Report =====")
+        println("HTML Report: file://${reports.html.entryPoint}")
+    }
 }
 
-// QueryDSL: Q클래스 생성 디렉터리 설정
 def querydslDir = layout.buildDirectory.dir('generated/querydsl').get().asFile
 
 sourceSets {
