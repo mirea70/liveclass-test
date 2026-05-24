@@ -17,9 +17,10 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
-import org.springframework.web.HttpRequestMethodNotSupportedException;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -229,6 +230,24 @@ public class GlobalExceptionHandler {
                 .headers(headers)
                 .body(new ErrorResponse(
                         String.valueOf(HttpStatus.METHOD_NOT_ALLOWED.value()),
+                        message,
+                        request.getRequestURI()
+                ));
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMediaTypeNotSupported(
+            HttpMediaTypeNotSupportedException e, HttpServletRequest request) {
+
+        String supportedTypes = (e.getSupportedMediaTypes() != null && !e.getSupportedMediaTypes().isEmpty())
+                ? e.getSupportedMediaTypes().toString()
+                : "application/json";
+
+        String message = "지원하지 않는 Content-Type입니다. (지원되는 타입: " + supportedTypes + ")";
+
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(new ErrorResponse(
+                        String.valueOf(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value()),
                         message,
                         request.getRequestURI()
                 ));
