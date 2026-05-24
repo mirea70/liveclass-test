@@ -12,6 +12,7 @@ import com.liveclass.enrollment.domain.entity.Enrollment;
 import com.liveclass.enrollment.domain.entity.EnrollmentStatus;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
 import com.liveclass.waitlist.domain.entity.Waitlist;
+import com.liveclass.waitlist.dto.response.MyWaitlistResponse;
 import com.liveclass.waitlist.dto.response.WaitlistResponse;
 import com.liveclass.waitlist.repository.WaitlistRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -232,6 +233,29 @@ class WaitlistServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorInfo())
                     .isEqualTo(WaitlistErrorInfo.NOT_WAITLIST_OWNER);
+        }
+    }
+
+    @Nested
+    @DisplayName("내 대기 목록 조회 (getMyWaitlists)")
+    class GetMyWaitlists {
+
+        @Test
+        @DisplayName("Repository에서 받은 목록을 그대로 반환한다")
+        void returnsList_whenCalled() {
+            // given
+            java.util.List<MyWaitlistResponse> myWaitlists = java.util.List.of(
+                    new MyWaitlistResponse(55L, 1L, "Spring Boot", 99_000L,
+                            java.time.LocalDate.of(2026, 6, 1), java.time.LocalDate.of(2026, 8, 31),
+                            3, java.time.LocalDateTime.of(2026, 5, 20, 9, 0))
+            );
+            given(waitlistRepository.findMyWaitlists(MEMBER_ID)).willReturn(myWaitlists);
+
+            // when
+            java.util.List<MyWaitlistResponse> result = waitlistService.getMyWaitlists(MEMBER_ID);
+
+            // then
+            assertThat(result).isEqualTo(myWaitlists);
         }
     }
 

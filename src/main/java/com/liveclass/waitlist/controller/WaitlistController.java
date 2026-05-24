@@ -1,18 +1,22 @@
 package com.liveclass.waitlist.controller;
 
 import com.liveclass.waitlist.dto.request.WaitlistCreateRequest;
+import com.liveclass.waitlist.dto.response.MyWaitlistResponse;
 import com.liveclass.waitlist.dto.response.WaitlistResponse;
 import com.liveclass.waitlist.service.WaitlistService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 import java.net.URI;
 
@@ -41,5 +45,12 @@ public class WaitlistController {
     ) {
         waitlistService.cancel(waitlistId, memberId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/me")
+    public List<MyWaitlistResponse> getMyWaitlists(
+            @RequestHeader("X-Member-Id") Long memberId
+    ) {
+        return waitlistService.getMyWaitlists(memberId);
     }
 }

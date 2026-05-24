@@ -1,11 +1,17 @@
 package com.liveclass.waitlist.repository;
 
+import com.liveclass.course.domain.entity.Course;
 import com.liveclass.support.JpaTestSupport;
 import com.liveclass.waitlist.domain.entity.Waitlist;
+import com.liveclass.waitlist.dto.response.MyWaitlistResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -188,6 +194,57 @@ class WaitlistRepositoryTest extends JpaTestSupport {
 
         // then
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("findMyWaitlists는 본인 대기 목록을 강의 정보와 함께 createdAt 내림차순으로 반환한다")
+    void returnsMyWaitlistsJoinedWithCourse_orderedByCreatedAtDesc() {
+        // given
+        Long memberId = 200L;
+        Course courseA = saveCourse("강의 A", 10_000L);
+        Course courseB = saveCourse("강의 B", 20_000L);
+        Waitlist older = waitlistRepository.saveAndFlush(Waitlist.createNew(courseA.getId(), memberId, 1));
+        ReflectionTestUtils.setField(older, "createdAt", LocalDateTime.of(2026, 1, 1, 0, 0));
+        waitlistRepository.saveAndFlush(older);
+        Waitlist newer = waitlistRepository.saveAndFlush(Waitlist.createNew(courseB.getId(), memberId, 3));
+        ReflectionTestUtils.setField(newer, "createdAt", LocalDateTime.of(2026, 2, 1, 0, 0));
+        waitlistRepository.saveAndFlush(newer);
+        entityManager.clear();
+
+        // when
+        List<MyWaitlistResponse> result = waitlistRepository.findMyWaitlists(memberId);
+
+        // then
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).courseTitle()).isEqualTo("강의 B");
+        assertThat(result.get(0).orderNum()).isEqualTo(3);
+        assertThat(result.get(0).price()).isEqualTo(20_000L);
+        assertThat(result.get(1).courseTitle()).isEqualTo("강의 A");
+        assertThat(result.get(1).orderNum()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("findMyWaitlists는 다른 사용자의 대기를 포함하지 않는다")
+    void excludesOtherMembersWaitlists() {
+        // given
+        Course courseA = saveCourse("강의 A", 10_000L);
+        waitlistRepository.saveAndFlush(Waitlist.createNew(courseA.getId(), 200L, 1));
+        waitlistRepository.saveAndFlush(Waitlist.createNew(courseA.getId(), 999L, 2));
+
+        // when
+        List<MyWaitlistResponse> result = waitlistRepository.findMyWaitlists(200L);
+
+        // then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).orderNum()).isEqualTo(1);
+    }
+
+    private Course saveCourse(String title, long price) {
+        Course course = Course.createNew(
+                100L, title, "설명",
+                price, 30,
+                LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31));
+        return courseRepository.saveAndFlush(course);
     }
 
     @Test

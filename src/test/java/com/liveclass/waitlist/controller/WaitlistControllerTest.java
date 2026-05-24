@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -166,5 +167,27 @@ class WaitlistControllerTest extends ControllerTestSupport {
                         .header("X-Member-Id", MEMBER_ID))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("WAITLIST_002"));
+    }
+
+    @Test
+    @DisplayName("내 대기 목록 조회 시 200과 List 응답을 반환한다")
+    void returns200WithList_whenGetMyWaitlists() throws Exception {
+        // given
+        com.liveclass.waitlist.dto.response.MyWaitlistResponse my =
+                new com.liveclass.waitlist.dto.response.MyWaitlistResponse(
+                        WAITLIST_ID, COURSE_ID, "Spring Boot", 99_000L,
+                        java.time.LocalDate.of(2026, 6, 1), java.time.LocalDate.of(2026, 8, 31),
+                        3, java.time.LocalDateTime.of(2026, 5, 20, 9, 0));
+        given(waitlistService.getMyWaitlists(MEMBER_ID)).willReturn(java.util.List.of(my));
+
+        // when & then
+        mockMvc.perform(get("/api/waitlists/me")
+                        .header("X-Member-Id", MEMBER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].waitlistId").value(WAITLIST_ID))
+                .andExpect(jsonPath("$[0].courseTitle").value("Spring Boot"))
+                .andExpect(jsonPath("$[0].orderNum").value(3));
     }
 }
