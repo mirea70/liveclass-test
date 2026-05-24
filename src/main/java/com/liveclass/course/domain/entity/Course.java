@@ -4,6 +4,7 @@ import com.liveclass.common.domain.entity.BaseEntity;
 import com.liveclass.common.error.exception.DomainException;
 import com.liveclass.common.error.info.CourseErrorInfo;
 import com.liveclass.common.domain.vo.Money;
+import com.liveclass.course.domain.policy.CoursePolicy;
 import com.liveclass.course.domain.vo.CoursePeriod;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
@@ -81,7 +82,7 @@ public class Course extends BaseEntity {
     public static Course createNew(Long creatorId, String title, String description,
                                    long price, int capacity,
                                    LocalDate startDate, LocalDate endDate) {
-        if (capacity < 1) {
+        if (capacity < CoursePolicy.MIN_COURSE_CAPACITY) {
             throw new DomainException(CourseErrorInfo.CAPACITY_INVALID_VALUE);
         }
         return new Course(

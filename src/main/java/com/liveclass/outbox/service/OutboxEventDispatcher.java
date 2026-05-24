@@ -2,6 +2,7 @@ package com.liveclass.outbox.service;
 
 import com.liveclass.outbox.domain.entity.OutboxEvent;
 import com.liveclass.outbox.domain.entity.OutboxEventType;
+import com.liveclass.outbox.domain.policy.OutboxPolicy;
 import com.liveclass.outbox.repository.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,13 +15,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OutboxEventDispatcher {
 
-    private static final int BATCH_SIZE = 100;
-
     private final OutboxEventRepository outboxEventRepository;
     private final OutboxEventProcessor outboxEventProcessor;
 
     public void dispatchPending(OutboxEventType type) {
-        List<OutboxEvent> events = outboxEventRepository.findPendingByType(type, BATCH_SIZE);
+        List<OutboxEvent> events = outboxEventRepository.findPendingByType(type, OutboxPolicy.BATCH_SIZE);
         for (OutboxEvent event : events) {
             try {
                 outboxEventProcessor.process(event.getId());

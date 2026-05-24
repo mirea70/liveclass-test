@@ -2,6 +2,7 @@ package com.liveclass.outbox.service;
 
 import com.liveclass.outbox.domain.entity.OutboxEvent;
 import com.liveclass.outbox.domain.entity.OutboxEventType;
+import com.liveclass.outbox.domain.policy.OutboxPolicy;
 import com.liveclass.outbox.repository.OutboxEventRepository;
 import com.liveclass.outbox.service.handler.OutboxEventHandler;
 import lombok.extern.slf4j.Slf4j;
@@ -16,8 +17,6 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class OutboxEventProcessor {
-
-    private static final int MAX_RETRY = 5;
 
     private final OutboxEventRepository outboxEventRepository;
     private final Map<OutboxEventType, OutboxEventHandler> handlersByType;
@@ -44,6 +43,6 @@ public class OutboxEventProcessor {
     @Transactional
     public void markRetry(Long eventId) {
         OutboxEvent event = outboxEventRepository.findById(eventId).orElseThrow();
-        event.incrementRetry(MAX_RETRY);
+        event.incrementRetry(OutboxPolicy.MAX_RETRY);
     }
 }

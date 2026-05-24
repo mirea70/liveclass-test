@@ -8,6 +8,7 @@ import com.liveclass.course.domain.entity.CourseEnrollCount;
 import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
 import com.liveclass.enrollment.domain.entity.Enrollment;
+import com.liveclass.enrollment.domain.policy.EnrollmentPolicy;
 import com.liveclass.common.dto.PageResponse;
 import com.liveclass.enrollment.dto.response.EnrollmentResponse;
 import com.liveclass.enrollment.dto.response.MyEnrollmentResponse;
@@ -28,7 +29,6 @@ import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -36,8 +36,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class EnrollmentService {
-
-    private static final Duration CANCELLATION_WINDOW = Duration.ofDays(7);
 
     private final CourseRepository courseRepository;
     private final CourseEnrollCountRepository courseEnrollCountRepository;
@@ -70,7 +68,7 @@ public class EnrollmentService {
     public EnrollmentResponse cancel(Long enrollmentId, Long memberId) {
         Enrollment enrollment = getEnrollment(enrollmentId);
         enrollment.verifyOwner(memberId);
-        enrollment.cancel(LocalDateTime.now(), CANCELLATION_WINDOW);
+        enrollment.cancel(LocalDateTime.now(), EnrollmentPolicy.CANCELLATION_WINDOW);
 
         releaseSeat(enrollment.getCourseId());
         courseReservationRepository.deleteByCourseIdAndMemberId(enrollment.getCourseId(), memberId);

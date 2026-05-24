@@ -1,6 +1,7 @@
 package com.liveclass.outbox.scheduler;
 
 import com.liveclass.outbox.domain.entity.OutboxEventType;
+import com.liveclass.outbox.domain.policy.OutboxPolicy;
 import com.liveclass.outbox.service.OutboxEventDispatcher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -14,7 +15,7 @@ public class OutboxEventScheduler {
 
     private final OutboxEventDispatcher outboxEventDispatcher;
 
-    @Scheduled(fixedDelay = 5000)
+    @Scheduled(fixedDelay = OutboxPolicy.POLLING_INTERVAL_MS)
     public void pollEnrollmentCancelledEvents() {
         outboxEventDispatcher.dispatchPending(OutboxEventType.ENROLLMENT_CANCELLED);
     }
