@@ -8,6 +8,7 @@ import com.liveclass.common.error.response.ErrorResponse;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -121,11 +123,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
             HttpMessageNotReadableException e, HttpServletRequest request) {
 
-        Throwable cause = e.getCause();
-        if (cause instanceof InvalidFormatException invalidFormatException) {
-            Class<?> targetType = invalidFormatException.getTargetType();
+        // InvalidFormatException을 원인 체인에서 찾아서 처리 (enum이 아니어도 포함)
+        InvalidFormatException invalidFormat = findInvalidFormatException(e);
+        if (invalidFormat != null) {
+            Class<?> targetType = invalidFormat.getTargetType();
             if (targetType != null && targetType.isEnum()) {
-                return handleInvalidEnumValue(invalidFormatException, request);
+                return handleInvalidEnumValue(invalidFormat, request);
+            } else {
+                return handleInvalidFormatValue(invalidFormat, request);
             }
         }
 
@@ -136,6 +141,17 @@ public class GlobalExceptionHandler {
                         "요청 본문을 읽을 수 없습니다. JSON 형식을 확인해주세요.",
                         request.getRequestURI()
                 ));
+    }
+
+    private InvalidFormatException findInvalidFormatException(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof InvalidFormatException) {
+                return (InvalidFormatException) current;
+            }
+            current = current.getCause();
+        }
+        return null;
     }
 
     private ResponseEntity<ErrorResponse> handleInvalidEnumValue(
@@ -163,6 +179,58 @@ public class GlobalExceptionHandler {
                         "요청 정보 중 유효하지 않은 값이 있습니다.",
                         request.getRequestURI(),
                         details
+                ));
+    }
+
+    private ResponseEntity<ErrorResponse> handleInvalidFormatValue(
+            InvalidFormatException e, HttpServletRequest request) {
+
+        String fieldName = e.getPath().isEmpty()
+                ? "unknown"
+                : e.getPath().get(0).getFieldName();
+
+        Object invalidValue = e.getValue();
+        Class<?> targetType = e.getTargetType();
+
+        String typeName = (targetType != null) ? targetType.getSimpleName() : "알 수 없는 타입";
+
+        String detailMessage = String.format(
+                "'%s' 값은 %s 타입으로 변환할 수 없습니다.",
+                invalidValue, typeName
+        );
+
+        Map<String, Object> details = Map.of(fieldName, detailMessage);
+
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse(
+                        "INVALID_REQUEST",
+                        "요청 정보 중 유효하지 않은 값이 있습니다.",
+                        request.getRequestURI(),
+                        details
+                ));
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupported(
+            HttpRequestMethodNotSupportedException e, HttpServletRequest request) {
+
+        HttpHeaders headers = new HttpHeaders();
+        if (e.getSupportedHttpMethods() != null) {
+            headers.setAllow(e.getSupportedHttpMethods());
+        }
+
+        String supportedMethods = (e.getSupportedHttpMethods() != null)
+                ? e.getSupportedHttpMethods().toString()
+                : "없음";
+
+        String message = "지원하지 않는 HTTP 메서드입니다. (지원되는 메서드: " + supportedMethods + ")";
+
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .headers(headers)
+                .body(new ErrorResponse(
+                        String.valueOf(HttpStatus.METHOD_NOT_ALLOWED.value()),
+                        message,
+                        request.getRequestURI()
                 ));
     }
 
