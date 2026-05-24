@@ -5,7 +5,10 @@ import com.liveclass.common.error.info.CourseErrorInfo;
 import com.liveclass.common.error.info.EnrollmentErrorInfo;
 import com.liveclass.common.error.info.WaitlistErrorInfo;
 import com.liveclass.course.domain.entity.Course;
+import com.liveclass.course.domain.entity.CourseEnrollCount;
+import com.liveclass.course.repository.CourseEnrollCountRepository;
 import com.liveclass.course.repository.CourseRepository;
+import com.liveclass.enrollment.domain.entity.Enrollment;
 import com.liveclass.enrollment.domain.entity.EnrollmentStatus;
 import com.liveclass.enrollment.repository.EnrollmentRepository;
 import com.liveclass.waitlist.domain.entity.Waitlist;
@@ -45,6 +48,9 @@ class WaitlistServiceTest {
 
     @Mock
     private CourseRepository courseRepository;
+
+    @Mock
+    private CourseEnrollCountRepository courseEnrollCountRepository;
 
     @Mock
     private EnrollmentRepository enrollmentRepository;
@@ -226,6 +232,75 @@ class WaitlistServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorInfo())
                     .isEqualTo(WaitlistErrorInfo.NOT_WAITLIST_OWNER);
+        }
+    }
+
+    @Nested
+    @DisplayName("대기자 승격 (promoteOldest)")
+    class PromoteOldest {
+
+        @Test
+        @DisplayName("대기자가 없으면 아무 작업도 하지 않는다")
+        void doesNothing_whenNoWaitlist() {
+            // given
+            given(waitlistRepository.findOldestByCourseId(COURSE_ID)).willReturn(Optional.empty());
+
+            // when
+            waitlistService.promoteOldest(COURSE_ID);
+
+            // then
+            org.mockito.Mockito.verifyNoInteractions(enrollmentRepository);
+            org.mockito.Mockito.verifyNoInteractions(courseEnrollCountRepository);
+            org.mockito.Mockito.verify(waitlistRepository, org.mockito.Mockito.never())
+                    .delete(any(Waitlist.class));
+        }
+
+        @Test
+        @DisplayName("대기자가 있고 정원에 자리가 있으면 가장 오래된 대기자가 승격되고 카운터가 +1된다")
+        void promotes_whenSeatAvailable() {
+            // given
+            Long promotedMemberId = 300L;
+            Waitlist oldest = Waitlist.createNew(COURSE_ID, promotedMemberId, 1);
+            Course course = createOpenCourse();
+            CourseEnrollCount enrollCount = CourseEnrollCount.createNew(COURSE_ID);
+            // 1자리는 비어있는 상황 (정원=1, count=0 → A가 방금 취소해서 release한 직후)
+            given(waitlistRepository.findOldestByCourseId(COURSE_ID)).willReturn(Optional.of(oldest));
+            given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
+            given(courseEnrollCountRepository.findById(COURSE_ID)).willReturn(Optional.of(enrollCount));
+
+            // when
+            waitlistService.promoteOldest(COURSE_ID);
+
+            // then
+            assertThat(enrollCount.getCount()).isEqualTo(1); // release된 자리를 W가 채움
+            org.mockito.Mockito.verify(waitlistRepository).delete(oldest);
+            org.mockito.Mockito.verify(waitlistRepository).shiftOrderNumDownAfter(COURSE_ID, 1);
+            org.mockito.ArgumentCaptor<Enrollment> captor =
+                    org.mockito.ArgumentCaptor.forClass(Enrollment.class);
+            org.mockito.Mockito.verify(enrollmentRepository).save(captor.capture());
+            assertThat(captor.getValue().getMemberId()).isEqualTo(promotedMemberId);
+            assertThat(captor.getValue().getStatus()).isEqualTo(EnrollmentStatus.PENDING);
+        }
+
+        @Test
+        @DisplayName("정원이 이미 가득 차있으면 (다른 신청자가 자리를 차지함) 승격을 skip한다")
+        void skipsPromotion_whenSeatNotAvailable() {
+            // given
+            Waitlist oldest = Waitlist.createNew(COURSE_ID, 300L, 1);
+            Course course = createOpenCourse(); // capacity = 1
+            CourseEnrollCount enrollCount = CourseEnrollCount.createNew(COURSE_ID);
+            enrollCount.tryReserve(1); // 이미 가득 (다른 신청자가 자리 차지)
+            given(waitlistRepository.findOldestByCourseId(COURSE_ID)).willReturn(Optional.of(oldest));
+            given(courseRepository.findById(COURSE_ID)).willReturn(Optional.of(course));
+            given(courseEnrollCountRepository.findById(COURSE_ID)).willReturn(Optional.of(enrollCount));
+
+            // when
+            waitlistService.promoteOldest(COURSE_ID);
+
+            // then: 대기자는 그대로, enrollment INSERT 없음
+            assertThat(enrollCount.getCount()).isEqualTo(1);
+            org.mockito.Mockito.verify(waitlistRepository, org.mockito.Mockito.never()).delete(any(Waitlist.class));
+            org.mockito.Mockito.verify(enrollmentRepository, org.mockito.Mockito.never()).save(any(Enrollment.class));
         }
     }
 

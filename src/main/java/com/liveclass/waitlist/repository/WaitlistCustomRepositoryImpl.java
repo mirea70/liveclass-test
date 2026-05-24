@@ -1,7 +1,10 @@
 package com.liveclass.waitlist.repository;
 
+import com.liveclass.waitlist.domain.entity.Waitlist;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
+
+import java.util.Optional;
 
 import static com.liveclass.waitlist.domain.entity.QWaitlist.waitlist;
 
@@ -28,5 +31,14 @@ public class WaitlistCustomRepositoryImpl implements WaitlistCustomRepository {
                 .where(waitlist.courseId.eq(courseId)
                         .and(waitlist.orderNum.gt(deletedOrderNum)))
                 .execute();
+    }
+
+    @Override
+    public Optional<Waitlist> findOldestByCourseId(Long courseId) {
+        return Optional.ofNullable(queryFactory
+                .selectFrom(waitlist)
+                .where(waitlist.courseId.eq(courseId))
+                .orderBy(waitlist.orderNum.asc())
+                .fetchFirst());
     }
 }

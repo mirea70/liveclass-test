@@ -6,6 +6,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -147,6 +149,45 @@ class WaitlistRepositoryTest extends JpaTestSupport {
         // then: 1은 그대로, 3·4는 각각 2·3으로
         assertThat(waitlistRepository.findById(w3.getId()).orElseThrow().getOrderNum()).isEqualTo(2);
         assertThat(waitlistRepository.findById(w4.getId()).orElseThrow().getOrderNum()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("findOldestByCourseId는 order_num이 가장 작은 대기자를 반환한다")
+    void returnsOldestWaitlist_whenWaitlistExists() {
+        // given
+        Waitlist w2 = waitlistRepository.saveAndFlush(Waitlist.createNew(COURSE_ID, 102L, 2));
+        Waitlist w1 = waitlistRepository.saveAndFlush(Waitlist.createNew(COURSE_ID, 101L, 1));
+        Waitlist w3 = waitlistRepository.saveAndFlush(Waitlist.createNew(COURSE_ID, 103L, 3));
+
+        // when
+        Optional<Waitlist> result = waitlistRepository.findOldestByCourseId(COURSE_ID);
+
+        // then
+        assertThat(result).isPresent();
+        assertThat(result.get().getId()).isEqualTo(w1.getId());
+    }
+
+    @Test
+    @DisplayName("대기자가 없으면 findOldestByCourseId는 Optional.empty이다")
+    void returnsEmpty_whenNoWaitlist() {
+        // when
+        Optional<Waitlist> result = waitlistRepository.findOldestByCourseId(COURSE_ID);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("findOldestByCourseId는 다른 강의의 대기자를 반환하지 않는다")
+    void doesNotReturnOtherCourseWaitlist_whenFindOldest() {
+        // given
+        waitlistRepository.saveAndFlush(Waitlist.createNew(OTHER_COURSE_ID, 100L, 1));
+
+        // when
+        Optional<Waitlist> result = waitlistRepository.findOldestByCourseId(COURSE_ID);
+
+        // then
+        assertThat(result).isEmpty();
     }
 
     @Test

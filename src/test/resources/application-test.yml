@@ -19,6 +19,10 @@ spring:
     console:
       enabled: false
 
+outbox:
+  scheduler:
+    enabled: false
+
 logging:
   level:
     org.hibernate.SQL: debug
